@@ -18,7 +18,6 @@ while True:
     activeSockets, x, errorSockets = select.select(sockets, [], sockets)
     for checkSocket in activeSockets:
         if checkSocket == serverSideSocket:
-            # print ("trying to accept new client")
             newClient, addr = serverSideSocket.accept()
             while True:
                 username = (newClient.recv(1024)).decode('utf-8')
@@ -31,10 +30,7 @@ while True:
                     sockets.append(newClient)
                     print (f"Cnnection from: Username = '{username}' at {addr}")
                     break
-            # print ("moving to next socket")
         else:
-            # print ("trying to recieve from client")
-        
             msg = checkSocket.recv(1024)
 
             if not msg:
@@ -46,12 +42,9 @@ while True:
             checkSocket.send("Message Delivered".encode('utf-8'))
 
             for otherClient in clientBySockets:
-                # print (f"Sending message to {otherClient}")
                 if otherClient != checkSocket:
                     otherClient.send(msg)
-            # print ("moving to next socket")
     
     for checkSocket in errorSockets:
             sockets.remove(checkSocket)
             del clientBySockets[checkSocket]
-    
