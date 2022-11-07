@@ -10,7 +10,7 @@ try:
     connectionSocket.connect((host, port))
 except socket.error as e:
     print(str(e))
-while True:    
+while True:
     username = input("Enter Username: ")
     connectionSocket.send(username.encode('utf-8'))
     response = (connectionSocket.recv(1024)).decode('utf-8')

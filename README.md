@@ -3,7 +3,7 @@
 * Connection of multiple clients on a server possible.
 * Server Broadcasts the message to every active client.
 * Abruptly closing any client does not affect remaining network.
-* Abruptly closing any client closes all clients connected.
+* Abruptly closing any server closes all clients connected.
 
 
 ## Reference for multi-threading of mulitple clients on a server:
