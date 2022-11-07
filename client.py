@@ -40,7 +40,6 @@ while True:
                 connectionSocket.send(msg.encode('utf-8'))
             except:
                 pass
-
     if sockets == []:
         break
 connectionSocket.close()
