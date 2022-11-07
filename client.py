@@ -21,14 +21,13 @@ while True:
         print ("Username is invalid, try again!")
 
 sockets = [connectionSocket, sys.stdin]
-
+print (username + " > ", end="", flush=True)
 while True:
     readSocket, x, errorSocket = select.select(sockets,[],sockets)
-    
     for inputSocket in readSocket:
         if inputSocket == connectionSocket:
             msg = inputSocket.recv(1024)
-            print(msg.decode('utf-8'))
+            print('\n', msg.decode('utf-8'), '\n', username, " > ", sep="", end="",flush=True)
 
             if not msg:
                 sockets = []
@@ -36,8 +35,11 @@ while True:
                 
         else:
             try:
-                msg = inputSocket.readline()
-                connectionSocket.send(msg.encode('utf-8'))
+                msg = inputSocket.readline().strip()
+                if msg != "":
+                    connectionSocket.send(msg.encode('utf-8'))
+                else:
+                    print (username + " > ", end="", flush=True)
             except:
                 pass
     if sockets == []:
