@@ -2,7 +2,7 @@ import socket
 import select
 import sys
 import json
-
+import time
 
 connectionSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = '127.0.0.1'
@@ -39,7 +39,10 @@ while True:
             try:
                 msg = inputSocket.readline().strip()
                 if msg != "":
-                    connectionSocket.send(msg.encode('utf-8'))
+                    toSend = {"from":username, "message":msg, "time":time.time()}
+                    j = json.loads(toSend)
+                    # connectionSocket.send(msg.encode('utf-8'))
+                    connectionSocket.send()
                 else:
                     print (username + " > ", end="", flush=True)
             except:
