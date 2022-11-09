@@ -43,6 +43,7 @@ while True:
                     sockets.append(newClient)
                     print (f"Connection from: Username = {username} at {addr}")
                     break
+                
         else:        
             msgHeader = checkSocket.recv(BUFFER_LENGTH)
 

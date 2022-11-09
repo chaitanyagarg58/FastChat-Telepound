@@ -39,6 +39,7 @@ while True:
         print ("Username is invalid, try again!")
 
 sockets = [connectionSocket, sys.stdin]
+
 print (username + " > ", end="", flush=True)
 while True:
     readSocket, x, errorSocket = select.select(sockets,[],sockets)
@@ -56,24 +57,22 @@ while True:
                 msg = msg + inputSocket.recv(BUFFER_LENGTH)
             
             msgJson = json.loads(msg)
-            if msgJson["message"] == "Message Delivered" and msgJson["from"] == "server":
+            if msgJson["from"] == "server":
                 print (msgJson["message"], '\n', username, " > ", sep="", end="", flush=True)
             else:
                 print (flush=True)
                 timeFormated = datetime.datetime.fromtimestamp(msgJson["time"])
                 print ('\t', timeFormated.strftime('%a, %-d/%-m/%Y'))
-                print(msgJson["from"], ": ", (msgJson["message"]), '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), '\n', username, " > ", sep="", end="", flush=True)
+                print(msgJson["from"], ": ", (msgJson["message"]), '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
                 if msgJson["type"] == "file":
                     print ("A file is attached, do you want to download it? (y/n)[n] > ", end="", flush=True)
                     res = sys.stdin.readline().strip()
                     if res == "y":
                         byte = msgJson["file"]
                         decodeit = open(msgJson["filename"], 'wb')
-                        decodeit.write(base64.decodebytes((byte)))
+                        decodeit.write(base64.b64decode((byte)))
                         decodeit.close()
-
-
-                
+                print(username + " > ", end="", flush=True)
         else:
             msg = inputSocket.readline().strip()
             if msg != "":
@@ -85,20 +84,28 @@ while True:
                 filename = inputSocket.readline().strip()
                 if filename != "":
                     if os.path.exists(filename):
-                        with open(filename, "rb") as file:
-                            fileString = base64.encodebytes(file.read()).decode('utf-8')
-                            msgType = "file"
-                            print ("File read Success Fully!!!!", flush=True)
-                            break
+                        if os.path.isdir(filename):
+                            print ("Attaching folder is not supported!! Sending message without attachment.", flush=True)
+                        else:
+                            with open(filename, "rb") as file:
+                                fileString = (base64.b64encode(file.read())).decode('utf-8')
+                                filename = filename.split("/")
+                                filename = filename[len(filename)-1]
+                                msgType = "file"
                     else:
-                        print ("file does not exist!!, sending without file.", flush=True)
-                toSend = {"from":username, "to":toClient, "message":msg, "filename":filename, "file":fileString, "time":time.time(), "type":msgType}
-                print (toSend["file"], flush=True)
+                        print ("File does not exist!! Sending without file.", flush=True)
+                toSend = {
+                    "from": username,
+                    "to": toClient,
+                    "type": msgType,
+                    "message": msg,
+                    "filename": filename,
+                    "file": fileString,
+                    "time": time.time()
+                }
                 sendString = json.dumps(toSend)
-                print ("JSON is of Size:", sys.getsizeof(toSend), flush=True)
                 sendString = f'{len(sendString):<{HEADER_LENGTH}}'+ sendString
                 connectionSocket.send(sendString.encode('utf-8'))
-                print ("Message send to server!!!!" , flush = True)
             else:
                 print (username + " > ", end="", flush=True)
     if sockets == []:
