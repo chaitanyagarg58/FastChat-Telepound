@@ -10,7 +10,7 @@ import base64
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
 HOST = '127.0.0.1'  
-PORT = 5002
+PORT = 5000
 ADDR = (HOST, PORT)
 
 class Client:
@@ -33,6 +33,7 @@ class Client:
         if response["message"] == "Successful":
             print ("Signup Successful")
             self.username = response["to"]
+            print(self.username, "> ", end="", flush=True)
         else:
             print ("Username already Exists. Please Retry.")
             self.attemptLogin()
@@ -46,7 +47,6 @@ class Client:
         msg = inputSocket.readline().strip()
         if msg != "":
             msgType = "text"
-            fileString = ""
             print ("Send To > ", end="", flush=True)
             toUser = inputSocket.readline().strip()
             print ("Enter Filename if you want to attach it > ", end="", flush=True)
@@ -78,10 +78,11 @@ class Client:
             return
         if msgJson["from"] == None:
             print (msgJson["message"])
+            print (self.username, "> ", end="", flush=True)
             return
 
         timeFormated = datetime.datetime.fromtimestamp(msgJson["time"])
-        print ('\t', timeFormated.strftime('%a, %-d/%-m/%Y'))
+        print ('\n\t', timeFormated.strftime('%a, %-d/%-m/%Y'))
         print(msgJson["from"], ": ", msgJson["message"], '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
         if msgJson["type"] == "file":
             print ("A file is attached, do you want to download it? (y/n)[n] > ", end="", flush=True)
@@ -91,6 +92,7 @@ class Client:
                 decodeit = open(msgJson["filename"], 'wb')
                 decodeit.write(base64.b64decode((byte)))
                 decodeit.close()
+        print (self.username, "> ", end="", flush=True)
             
 
     def packJSON(self, type, fromUser, toUser, msg, filename):

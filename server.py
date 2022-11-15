@@ -8,7 +8,7 @@ HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
 
 host = '127.0.0.1'
-port = 5002
+port = 5000
 serverSideSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serverSideSocket.bind((host, port))
 print('Server is Online')
