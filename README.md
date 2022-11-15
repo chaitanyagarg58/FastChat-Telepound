@@ -8,6 +8,8 @@
 * All Communication is via json object, not string.
 * date and time are also send and printed.
 
+* Modularised client.py keeping all the same functionalities.
+
 
 
 ## Reference for multi-threading of mulitple clients on a server:
