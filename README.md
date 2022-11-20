@@ -1,14 +1,31 @@
 # Telepound
 
 * Connection of multiple clients on a server possible.
-* Abruptly closing any client does not affect remaining network.
-* Abruptly closing any client closes all clients connected.
+<!-- * Abruptly closing any client does not affect remaining network. -->
+<!-- * Abruptly closing any client closes all clients connected. -->
 * First enter the message, then the user you want to send to.
 * If no file is to be attached, directly press enter.
 * All Communication is via json object, not string.
 * date and time are also send and printed.
 
+* Modularised client.py keeping all the same functionalities.
 
+* Authentication of users has been added. 
+* User login and sign-up possible.
+* User passwords are stored in salted and hashed form in the database.
+
+* Database has 2 tables:
+    1. clientinfo: username (text), password (text), public_key (text), status (boolean), ip (text), port (integer)
+        - password is salted and hashed.
+        - public_key is the rsa public key (not used yet)
+        - status is a boolean telling if given client is online
+        - ip and port are the socket address for the client (also not used yet)
+
+    2. undelivered: time (double precision), touser (text), message (jsonb)
+        - Supposed to store undelivered massages.
+        - not used yet.
+
+* **Abrupt closing of server or client needs to be handled.**
 
 ## Reference for multi-threading of mulitple clients on a server:
 * https://www.positronx.io/create-socket-server-with-multiple-clients-in-python/
