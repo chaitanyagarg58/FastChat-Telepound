@@ -7,6 +7,7 @@ import time
 import datetime
 import base64
 import psycopg2
+import bcrypt
 
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
@@ -14,11 +15,18 @@ BUFFER_LENGTH = 4096
 conn = psycopg2.connect(database="postgres", user='client', password='telepoundClient', host='127.0.0.1', port= '5432')
 conn.autocommit = True
 cursor = conn.cursor()
-cursor.execute("SELECT * FROM clientinfo")
-print (cursor.fetchall())
+
+def userPresent(username):
+    cursor.execute("SELECT * FROM clientinfo WHERE username = '%s'"% (username))
+    user = cursor.fetchall()
+    if len(user) == 1:
+        return True
+    else:
+        return False
+
 
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = 5001
 ADDR = (HOST, PORT)
 
 class Client:
@@ -26,29 +34,90 @@ class Client:
         self.client = client_
         self.addr = addr_
         self.username = None
-        self.attemptLogin()
-
+        choice = input("Sign-up(s) or Login(l) (s/l) [l] > ")
+        if choice == 's':
+            self.attemptSignup()
+        else:
+            self.attemptLogin()
 
     def attemptLogin(self):
-        username = ""
-        while username == "":
-            username = input("Enter Username: ")
-        packet = self.packJSON("signup", None, None, username, None)
+        while True:
+            username = ""
+            while username == "":
+                username = input("Enter Username: ")
+            if not userPresent(username):
+                choice = input("User not found, if you wish to signup, enter [s]: ")
+                if choice == 's':
+                    print ("Redirecting to Signup.")
+                    self.attemptSignup()
+                    return
+                else:
+                    print ("Retry Login.")
+            else:
+                cursor.execute("SELECT password FROM clientinfo WHERE username = '%s'"% (username))
+                p = cursor.fetchone()[0]
+                for i in range (5):
+                    passwd = input("Enter Password: ")
+                    if bcrypt.checkpw(passwd.encode('utf-8'), p.encode('utf-8')):
+                        print ("Login Succesful!!")
+                        break
+                    else:
+                        i += 1
+                        if i == 5:
+                            print ("Wrong Password, attempt 5/5")
+                            print ("Maximum limit reached, aborting program!!")
+                            conn.close()
+                            connectionSocket.close()
+                            quit()
+                        choice = input ("Wrong Password, attempt %s/5 | press (i) to change username: "% (i))
+                        if choice == 'i':
+                            print ("Retry Login.")
+                            retry = True
+                            break
+                if retry:
+                    continue  
+                packet = self.packJSONlogin(username)
+                self.client.send(packet)
+                break
+
+
+    def packJSONlogin(self, username):
+        package = {"type": "login", "to": None, "username": username, "time": time.time()}
+        packString = json.dumps(package)
+        packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+        return packString.encode('utf-8')
+
+
+    def attemptSignup(self):
+        while True:
+            username = ""
+            while username == "":
+                username = input("Enter Username: ")
+            if userPresent(username):
+                print ("Username already exists, try another!!")
+            else:
+                self.username = username
+                break
+        while True:    
+            passwd = input ("Create Password: ")
+            passwd2 = input ("Confirm Password: ")
+            if passwd == passwd2:
+                print ("Sign-up Successful !!")
+                break
+            else:
+                print ("Passwords don't match, Retry !!!")
+        password = passwd.encode('utf-8')
+        salt = bcrypt.gensalt()
+        password = bcrypt.hashpw(password, salt)
+        packet = self.packJSONsignup(username, password.decode('utf-8'))
         self.client.send(packet)
 
 
-    def loginResponse(self, response):
-        if response["message"] == "Successful":
-            print ("Signup Successful")
-            self.username = response["to"]
-            print(self.username, "> ", end="", flush=True)
-        else:
-            print ("Username already Exists. Please Retry.")
-            self.attemptLogin()
-
-
-    def setup(self):
-        pass
+    def packJSONsignup(self, username, passwd):
+        package = {"type": "signup", "to": None, "username": username, "password": passwd, "time": time.time()}
+        packString = json.dumps(package)
+        packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+        return packString.encode('utf-8')
 
 
     def sendMessage(self, inputSocket):
@@ -81,9 +150,7 @@ class Client:
             msg = msg + self.client.recv(BUFFER_LENGTH)
         
         msgJson = self.unpackJSON(msg)
-        if msgJson["type"] == "signup":
-            self.loginResponse(msgJson)
-            return
+        
         if msgJson["from"] == None:
             print (msgJson["message"])
             print (self.username, "> ", end="", flush=True)
@@ -117,7 +184,6 @@ class Client:
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
-
    
     def unpackJSON(self, packString):
         return json.loads(packString.decode('utf-8'))

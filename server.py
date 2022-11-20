@@ -13,7 +13,7 @@ cursor = conn.cursor()
 
 
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = 5001
 serverSideSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serverSideSocket.bind((HOST, PORT))
 print('Server is Online')
@@ -48,20 +48,19 @@ while True:
                 msg = msg + checkSocket.recv(BUFFER_LENGTH)
 
             msgJson = json.loads(msg[HEADER_LENGTH:])
-            if msgJson["to"] == None and msgJson["type"] == "signup":
-                newUser = msgJson["message"]
-                if newUser in clientByUsername:
-                    res = json.dumps({"type": "signup", "from": None, "to": newUser, "message": "AlreadyExists", "time": time.time()})
-                    res = f'{len(res):<{HEADER_LENGTH}}'+ res
-                    checkSocket.send(res.encode('utf-8'))
-                else:
-                    res = json.dumps({"type": "signup", "from": None, "to": newUser, "message": "Successful", "time": time.time()})
-                    checkSocket.send((f'{len(res):<{HEADER_LENGTH}}'+res).encode('utf-8'))
-                    clientByUsername[newUser] = checkSocket
-                    clientBySockets[newClient] = newUser
-                    cursor.execute("INSERT INTO clientinfo (username, status, ip, port) VALUES ('%s', '%s', '%s', %s)"% (newUser, True, addr[0], addr[1]))
-                    print (f"Connection from: Username = {newUser} at {addr}")
-            
+            if msgJson["to"] == None:
+                if msgJson["type"] == "signup":
+                    username = msgJson["username"]
+                    clientByUsername[username] = checkSocket
+                    clientBySockets[checkSocket] = username
+                    cursor.execute("INSERT INTO clientinfo (username, status, ip, port, password) VALUES ('%s', '%s', '%s', %s, '%s')"% (username, True, addr[0], addr[1], msgJson["password"]))
+                    print (f"New Connection from: Username = {username} at {addr}")
+                elif msgJson["type"] == "login":
+                    username = msgJson["username"]
+                    clientByUsername[username] = checkSocket
+                    clientBySockets[checkSocket] = username
+                    cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
+                            
             elif msgJson["to"] in clientByUsername and clientByUsername[msgJson["to"]] != checkSocket:
                 clientByUsername[msgJson["to"]].send(msg)
                 readReceipt = json.dumps({"type": "text", "from": None, "message": "Message Delivered", "time": time.time()})
