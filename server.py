@@ -1,16 +1,21 @@
 import socket
 import select
-import sys
 import json
 import time
+import psycopg2
 
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
 
-host = '127.0.0.1'
-port = 5000
+conn = psycopg2.connect(database="postgres", user='postgres', password='telepoundServer', host='127.0.0.1', port= '5432')
+conn.autocommit = True
+cursor = conn.cursor()
+
+
+HOST = '127.0.0.1'
+PORT = 5000
 serverSideSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-serverSideSocket.bind((host, port))
+serverSideSocket.bind((HOST, PORT))
 print('Server is Online')
 serverSideSocket.listen()
 
@@ -30,7 +35,8 @@ while True:
             msgHeader = checkSocket.recv(BUFFER_LENGTH)
 
             if not msgHeader:
-                print (f"Connection Closed from: Username = '{clientBySockets[checkSocket]}' at {checkSocket.getsockname()}")
+                print (f"Connection Closed from: Username = '{clientBySockets[checkSocket]}' at {checkSocket.getpeername()}")
+                cursor.execute("UPDATE clientinfo SET status = 'False' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
                 sockets.remove(checkSocket)
                 del clientByUsername[clientBySockets[checkSocket]]
                 del clientBySockets[checkSocket]
@@ -53,6 +59,7 @@ while True:
                     checkSocket.send((f'{len(res):<{HEADER_LENGTH}}'+res).encode('utf-8'))
                     clientByUsername[newUser] = checkSocket
                     clientBySockets[newClient] = newUser
+                    cursor.execute("INSERT INTO clientinfo (username, status, ip, port) VALUES ('%s', '%s', '%s', %s)"% (newUser, True, addr[0], addr[1]))
                     print (f"Connection from: Username = {newUser} at {addr}")
             
             elif msgJson["to"] in clientByUsername and clientByUsername[msgJson["to"]] != checkSocket:
@@ -65,6 +72,8 @@ while True:
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
 
+    if serverSideSocket in errorSockets:
+        conn.close()
 
     for checkSocket in errorSockets:
         sockets.remove(checkSocket)

@@ -6,10 +6,18 @@ import json
 import time
 import datetime
 import base64
+import psycopg2
 
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
-HOST = '127.0.0.1'  
+
+conn = psycopg2.connect(database="postgres", user='client', password='telepoundClient', host='127.0.0.1', port= '5432')
+conn.autocommit = True
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM clientinfo")
+print (cursor.fetchall())
+
+HOST = '127.0.0.1'
 PORT = 5000
 ADDR = (HOST, PORT)
 
@@ -131,16 +139,14 @@ while True:
     for inputSocket in readSocket:
         if inputSocket == connectionSocket:
             msgHeader = inputSocket.recv(HEADER_LENGTH)
-
             if not msgHeader:
                 sockets = []
                 break
-
             myClient.recvMessage(int(msgHeader))
-
         else:
             myClient.sendMessage(inputSocket)
 
     if sockets == []:
         break
+conn.close()
 connectionSocket.close()
