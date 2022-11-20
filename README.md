@@ -14,6 +14,10 @@
 * User login and sign-up possible.
 * User passwords are stored in salted and hashed form in the database.
 
+* Database has 2 roles:
+    1. postgres: default role, used as server.
+    2. client: role created granted power as: 'Grant client to postgres;'.
+
 * Database has 2 tables:
     1. clientinfo: username (text), password (text), public_key (text), status (boolean), ip (text), port (integer)
         - password is salted and hashed.
