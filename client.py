@@ -31,7 +31,7 @@ def userPresent(username):
 
 
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = 5001
 ADDR = (HOST, PORT)
 
 class Client:
@@ -180,6 +180,11 @@ class Client:
             msgType = "text"
             print ("Send To > ", end="", flush=True)
             toUser = inputSocket.readline().strip()
+            cursor.execute("SELECT * FROM  clientinfo WHERE username = '%s'"% (toUser))
+            a = cursor.fetchone()
+            if len(a) == 0:
+                print ("User does not exist, try again.", flush=True)
+                return
             print ("Enter Filename if you want to attach it > ", end="", flush=True)
             filename = inputSocket.readline().strip()
             if filename != "":
