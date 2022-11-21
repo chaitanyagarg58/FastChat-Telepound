@@ -13,7 +13,7 @@ cursor = conn.cursor()
 
 
 HOST = '127.0.0.1'
-PORT = 5001
+PORT = 5000
 serverSideSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 serverSideSocket.bind((HOST, PORT))
 print('Server is Online')
@@ -53,7 +53,7 @@ while True:
                     username = msgJson["username"]
                     clientByUsername[username] = checkSocket
                     clientBySockets[checkSocket] = username
-                    cursor.execute("INSERT INTO clientinfo (username, status, ip, port, password) VALUES ('%s', '%s', '%s', %s, '%s')"% (username, True, addr[0], addr[1], msgJson["password"]))
+                    cursor.execute("INSERT INTO clientinfo (username, status, ip, port, password, public_n, public_e, private_d, private_p, private_q, salt) VALUES ('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', '%s')"% (username, True, addr[0], addr[1], msgJson["password"], str(msgJson["public_n"]), str(msgJson["public_e"]), str(msgJson["private_d"]), str(msgJson["private_p"]), str(msgJson["private_q"]), msgJson["salt"]))
                     print (f"New Connection from: Username = {username} at {addr}")
                 elif msgJson["type"] == "login":
                     username = msgJson["username"]

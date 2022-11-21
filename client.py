@@ -8,9 +8,14 @@ import datetime
 import base64
 import psycopg2
 import bcrypt
+import rsa
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
+FILE_BUFFER = 117
 
 conn = psycopg2.connect(database="postgres", user='client', password='telepoundClient', host='127.0.0.1', port= '5432')
 conn.autocommit = True
@@ -26,7 +31,7 @@ def userPresent(username):
 
 
 HOST = '127.0.0.1'
-PORT = 5001
+PORT = 5000
 ADDR = (HOST, PORT)
 
 class Client:
@@ -34,6 +39,8 @@ class Client:
         self.client = client_
         self.addr = addr_
         self.username = None
+        self.public = None
+        self.private = None
         choice = input("Sign-up(s) or Login(l) (s/l) [l] > ")
         if choice == 's':
             self.attemptSignup()
@@ -56,6 +63,7 @@ class Client:
             else:
                 cursor.execute("SELECT password FROM clientinfo WHERE username = '%s'"% (username))
                 p = cursor.fetchone()[0]
+                retry = False
                 for i in range (5):
                     passwd = input("Enter Password: ")
                     if bcrypt.checkpw(passwd.encode('utf-8'), p.encode('utf-8')):
@@ -75,7 +83,26 @@ class Client:
                             retry = True
                             break
                 if retry:
-                    continue  
+                    continue
+                self.username = username
+                cursor.execute("SELECT public_n, public_e, private_d, private_p, private_q, salt FROM clientinfo WHERE username = '%s'"% (username))
+                (n,e,d,p,q,salt) = cursor.fetchone()
+                n, e = int(n), int(e)
+                salt = salt.encode('latin-1')
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    iterations=480000,
+                )
+                key = base64.urlsafe_b64encode(kdf.derive(passwd.encode('utf-8')))
+                f = Fernet(key)
+                d = int(f.decrypt(d.encode('utf-8')).decode('utf-8'))
+                p = int(f.decrypt(p.encode('utf-8')).decode('utf-8'))
+                q = int(f.decrypt(q.encode('utf-8')).decode('utf-8'))
+                self.public = rsa.PublicKey(n, e)
+                self.private = rsa.PrivateKey(n, e, d, p, q)
+
                 packet = self.packJSONlogin(username)
                 self.client.send(packet)
                 break
@@ -106,15 +133,42 @@ class Client:
                 break
             else:
                 print ("Passwords don't match, Retry !!!")
+        
+        (self.public, self.private) = rsa.newkeys(1024)
         password = passwd.encode('utf-8')
         salt = bcrypt.gensalt()
         password = bcrypt.hashpw(password, salt)
-        packet = self.packJSONsignup(username, password.decode('utf-8'))
+
+        saltPrivate = os.urandom(16)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=saltPrivate,
+            iterations=480000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(passwd.encode('utf-8')))
+        f = Fernet(key)
+        private_d = f.encrypt(str(self.private['d']).encode('utf-8'))
+        private_p = f.encrypt(str(self.private['p']).encode('utf-8'))
+        private_q = f.encrypt(str(self.private['q']).encode('utf-8'))
+
+        packet = self.packJSONsignup(username, password.decode('utf-8'), self.public, private_d.decode('utf-8'), private_p.decode('utf-8'), private_q.decode('utf-8'), saltPrivate.decode('latin-1'))
         self.client.send(packet)
 
 
-    def packJSONsignup(self, username, passwd):
-        package = {"type": "signup", "to": None, "username": username, "password": passwd, "time": time.time()}
+    def packJSONsignup(self, username, passwd, public_key, private_d, private_p, private_q, saltPrivate):
+        package = {
+            "type": "signup",
+            "to": None,
+            "username": username,
+            "password": passwd,
+            "public_n": public_key['n'],
+            "public_e": public_key['e'],
+            "private_d": private_d,
+            "private_p": private_p,
+            "private_q": private_q,
+            "salt": saltPrivate,
+            "time": time.time()}
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
@@ -140,6 +194,7 @@ class Client:
                     filename = None
             else:
                 filename = None
+
             packet = self.packJSON(msgType, self.username, toUser, msg, filename)
             self.client.send(packet)
 
@@ -158,19 +213,28 @@ class Client:
 
         timeFormated = datetime.datetime.fromtimestamp(msgJson["time"])
         print ('\n\t', timeFormated.strftime('%a, %-d/%-m/%Y'))
-        print(msgJson["from"], ": ", msgJson["message"], '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
+        print(msgJson["from"], ": ", rsa.decrypt(msgJson["message"].encode('latin-1'), self.private).decode('utf-8'), '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
         if msgJson["type"] == "file":
             print ("A file is attached, do you want to download it? (y/n)[n] > ", end="", flush=True)
             res = sys.stdin.readline().strip()
             if res == "y":
-                byte = msgJson["file"]
-                decodeit = open(msgJson["filename"], 'wb')
+                byteArray = msgJson["file"]
+                filename = rsa.decrypt(msgJson["filename"].encode('latin-1'), self.private).decode('utf-8')
+                byte = ""
+                for i in byteArray:
+                    byte += rsa.decrypt(i.encode('latin-1'), self.private).decode('utf-8')
+                decodeit = open(filename, 'wb')
                 decodeit.write(base64.b64decode((byte)))
                 decodeit.close()
         print (self.username, "> ", end="", flush=True)
             
 
     def packJSON(self, type, fromUser, toUser, msg, filename):
+        cursor.execute("SELECT public_n, public_e FROM clientinfo WHERE username = '%s'"% (toUser))
+        (n,e,) = cursor.fetchone()
+        n, e = int(n), int(e)
+        pubKey = rsa.PublicKey(n, e)
+        msg = rsa.encrypt(msg.encode('utf-8'), pubKey).decode('latin-1')
         package = {"type": type, "from": fromUser, "to": toUser, "message": msg, "filename": filename, "time": time.time()}
         
         if filename != None:
@@ -178,8 +242,18 @@ class Client:
                 fileString = (base64.b64encode(file.read())).decode('utf-8')
                 filename = filename.split("/")
                 filename = filename[len(filename)-1]
-                package["file"] = fileString
-                package["filename"] = filename
+                fileArray = []
+                i = 0
+                while i < len(fileString):
+                    if i+FILE_BUFFER > len(fileString):     
+                        temp = fileString[i:]
+                        fileArray.append(rsa.encrypt(temp.encode('utf-8'), pubKey).decode('latin-1'))
+                        break
+                    temp = fileString[i:i+FILE_BUFFER]
+                    fileArray.append(rsa.encrypt(temp.encode('utf-8'), pubKey).decode('latin-1'))
+                    i = i + FILE_BUFFER
+                package["file"] = fileArray
+                package["filename"] = rsa.encrypt(filename.encode('utf-8'), pubKey).decode('latin-1')
 
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
