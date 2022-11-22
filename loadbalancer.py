@@ -4,6 +4,7 @@ import json
 import sys
 import time
 import psycopg2
+import heapdict
 
 
 HEADER_LENGTH = 10
@@ -23,7 +24,8 @@ balancer.listen()
 serverSockets = []
 serverIP = []
 serverPort = []
-serverLoad = {}
+serverLoad = heapdict.heapdict()
+clientToServer = {}
 clientSockets = []
 clientBySockets = {}
 clientByUsername = {}
@@ -62,18 +64,21 @@ def newClientConn(msgJson, client):
         cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (addr[0], addr[1]))
         print (f"Old User login at Connection from: Username = {username} at {addr}")
 
-    serverAssigned = packJSONConnClient("serverAssigned", None, username, serverIP[0], serverPort[0])
-    client.send(serverAssigned)
+    serverAssign(username, client)
     serverAll = packJSONConnClient("servers", None, username, serverIP, serverPort)
     client.send(serverAll)
     
-    # clientInfo = json.dumps({"type": "newClient", "to": None, "from": None, "username": username, "IP": addr[0], "port": addr[1]})
-    # clientInfo = f'{len(clientInfo):<{HEADER_LENGTH}}' + clientInfo
-    # for server in serverSockets:
-    #     if server.getpeername() == (serverIP[0], serverPort[0]):
-    #         continue
-    #     server.send(clientInfo.encode('utf-8'))
-    
+
+def serverAssign(username, client):
+    if client in clientToServer.keys():
+        serverLoad[clientToServer[client]] -= 1
+    pickedServer = serverLoad.popitem()
+    serverLoad[pickedServer[0]] = pickedServer[1] + 1
+    clientToServer[client] = pickedServer[0]
+    index = serverSockets.index(pickedServer[0])
+    serverAssigned = packJSONConnClient("serverAssigned", None, username, serverIP[index], serverPort[index])
+    client.send(serverAssigned)
+
 
 def newServerConn(msgJson, server):
     serverSockets.append(server)
@@ -124,7 +129,7 @@ while True:
                 newClientConn(msgJson, checkSocket)
 
             elif msgJson['type'] == 'clientReassign':
-                pass
+                serverAssign(msgJson['username'], checkSocket)
         
     if balancer in errorSockets:
         conn.close()

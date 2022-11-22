@@ -37,10 +37,10 @@ ADDR = (HOST, PORT)
 class Client:
     def __init__(self, balancer_, addr_):
         self.balancer = balancer_
+        self.addr = addr_
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.serverAddr = None
-        self.addr = addr_
-        
+        self.serverCounter = 0
         self.username = None
         self.sockets = [self.balancer, sys.stdin]
         self.public = None
@@ -203,10 +203,11 @@ class Client:
         if msgJson["type"] == "serverAssigned":
             self.serverAddr = (msgJson["serverIP"], msgJson["serverPort"])
             try:
+                self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.server.connect(self.serverAddr)
             except socket.error as e:
                 print(str(e))
-
+            print (self.server.getpeername())
             self.server.send(packString.encode('utf-8'))
             
         elif msgJson["type"] == "servers":
@@ -257,6 +258,15 @@ class Client:
 
             packet = self.packJSON(msgType, self.username, toUser, msg, filename)
             self.server.send(packet)
+        
+        self.serverCounter += 1
+        if self.serverCounter == 5:
+            self.serverCounter = 0
+            package = {"type": "clientReassign", "username": self.username, "time": time.time()}
+            packString = json.dumps(package)
+            packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+            self.balancer.send(packString.encode('utf-8'))
+            self.recvServers()
 
 
     def recvMessage(self, msgLength, inputSocket):

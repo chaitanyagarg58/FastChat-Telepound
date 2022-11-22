@@ -68,10 +68,6 @@ while True:
                 readReceipt = json.dumps({"type": "text", "from": None, "message": "Message Delivered", "time": time.time()})
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
-            # else:
-            #     readReceipt = json.dumps({"type": "text", "from": None, "message": "User Not Found", "time": time.time()})
-            #     readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
-            #     checkSocket.send(readReceipt.encode('utf-8'))
 
     if serverSideSocket in errorSockets:
         conn.close()
