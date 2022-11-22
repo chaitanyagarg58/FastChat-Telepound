@@ -31,14 +31,18 @@ def userPresent(username):
 
 
 HOST = '127.0.0.1'
-PORT = 5001
+PORT = int(sys.argv[1])
 ADDR = (HOST, PORT)
 
 class Client:
-    def __init__(self, client_, addr_):
-        self.client = client_
+    def __init__(self, balancer_, addr_):
+        self.balancer = balancer_
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.serverAddr = None
         self.addr = addr_
+        
         self.username = None
+        self.sockets = [self.balancer, sys.stdin]
         self.public = None
         self.private = None
         choice = input("Sign-up(s) or Login(l) (s/l) [l] > ")
@@ -75,7 +79,7 @@ class Client:
                             print ("Wrong Password, attempt 5/5")
                             print ("Maximum limit reached, aborting program!!")
                             conn.close()
-                            connectionSocket.close()
+                            balancer.close()
                             quit()
                         choice = input ("Wrong Password, attempt %s/5 | press (i) to change username: "% (i))
                         if choice == 'i':
@@ -84,32 +88,35 @@ class Client:
                             break
                 if retry:
                     continue
-                self.username = username
-                cursor.execute("SELECT public_n, public_e, private_d, private_p, private_q, salt FROM clientinfo WHERE username = '%s'"% (username))
-                (n,e,d,p,q,salt) = cursor.fetchone()
-                n, e = int(n), int(e)
-                salt = salt.encode('latin-1')
-                kdf = PBKDF2HMAC(
-                    algorithm=hashes.SHA256(),
-                    length=32,
-                    salt=salt,
-                    iterations=480000,
-                )
-                key = base64.urlsafe_b64encode(kdf.derive(passwd.encode('utf-8')))
-                f = Fernet(key)
-                d = int(f.decrypt(d.encode('utf-8')).decode('utf-8'))
-                p = int(f.decrypt(p.encode('utf-8')).decode('utf-8'))
-                q = int(f.decrypt(q.encode('utf-8')).decode('utf-8'))
-                self.public = rsa.PublicKey(n, e)
-                self.private = rsa.PrivateKey(n, e, d, p, q)
-
-                packet = self.packJSONlogin(username)
-                self.client.send(packet)
                 break
+        self.username = username
+        cursor.execute("SELECT public_n, public_e, private_d, private_p, private_q, salt FROM clientinfo WHERE username = '%s'"% (username))
+        (n,e,d,p,q,salt) = cursor.fetchone()
+        n, e = int(n), int(e)
+        salt = salt.encode('latin-1')
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=480000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(passwd.encode('utf-8')))
+        f = Fernet(key)
+        d = int(f.decrypt(d.encode('utf-8')).decode('utf-8'))
+        p = int(f.decrypt(p.encode('utf-8')).decode('utf-8'))
+        q = int(f.decrypt(q.encode('utf-8')).decode('utf-8'))
+        self.public = rsa.PublicKey(n, e)
+        self.private = rsa.PrivateKey(n, e, d, p, q)
+
+        packet = self.packJSONlogin(username)
+        self.balancer.send(packet)
+        self.recvServers()
+        self.recvServers()
+
 
 
     def packJSONlogin(self, username):
-        package = {"type": "login", "to": None, "username": username, "time": time.time()}
+        package = {"type": "connectionClient", "action": "login", "to": None, "username": username, "time": time.time()}
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
@@ -153,12 +160,15 @@ class Client:
         private_q = f.encrypt(str(self.private['q']).encode('utf-8'))
 
         packet = self.packJSONsignup(username, password.decode('utf-8'), self.public, private_d.decode('utf-8'), private_p.decode('utf-8'), private_q.decode('utf-8'), saltPrivate.decode('latin-1'))
-        self.client.send(packet)
+        self.balancer.send(packet)
+        self.recvServers()
+        self.recvServers()
 
 
     def packJSONsignup(self, username, passwd, public_key, private_d, private_p, private_q, saltPrivate):
         package = {
-            "type": "signup",
+            "type": "connectionClient",
+            "action": "signup",
             "to": None,
             "username": username,
             "password": passwd,
@@ -172,6 +182,51 @@ class Client:
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
+    
+
+
+    def recvServers(self):
+        svrHeader = self.balancer.recv(HEADER_LENGTH)
+        svrLength = int(svrHeader.decode('utf-8'))
+        msg = b''
+        while len(msg) < svrLength:
+            if len(msg) + BUFFER_LENGTH > svrLength:
+                msg = msg + self.balancer.recv(svrLength - len(msg))
+                break
+            msg = msg + self.balancer.recv(BUFFER_LENGTH)
+        
+        msgJson = self.unpackJSON(msg)
+        package = {"type": "connect", "to": None, "username": self.username, "time": time.time()}
+        packString = json.dumps(package)
+        packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+
+        if msgJson["type"] == "serverAssigned":
+            self.serverAddr = (msgJson["serverIP"], msgJson["serverPort"])
+            try:
+                self.server.connect(self.serverAddr)
+            except socket.error as e:
+                print(str(e))
+
+            self.server.send(packString.encode('utf-8'))
+            
+        elif msgJson["type"] == "servers":
+            ip = msgJson["serverIP"]
+            port = msgJson["serverPort"]
+            for i in range(len(ip)):
+                addr = (ip[i], port[i])
+                if addr == self.serverAddr:
+                    self.sockets.append(self.server)
+                else:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    try:
+                        s.connect(addr)
+                    except socket.error as e:
+                        print(str(e))
+                    s.send(packString.encode('utf-8'))
+                    self.sockets.append(s)
+
+
+
 
 
     def sendMessage(self, inputSocket):
@@ -201,13 +256,13 @@ class Client:
                 filename = None
 
             packet = self.packJSON(msgType, self.username, toUser, msg, filename)
-            self.client.send(packet)
+            self.server.send(packet)
 
 
-    def recvMessage(self, msgLength):
+    def recvMessage(self, msgLength, inputSocket):
         msg = b''
         while len(msg) < msgLength:
-            msg = msg + self.client.recv(BUFFER_LENGTH)
+            msg = msg + inputSocket.recv(BUFFER_LENGTH)
         
         msgJson = self.unpackJSON(msg)
         
@@ -269,29 +324,29 @@ class Client:
 
 
 
-connectionSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print('Waiting for connection response')
 try:
-    connectionSocket.connect((HOST, PORT))
+    balancer.connect((HOST, PORT))
 except socket.error as e:
     print(str(e))
 
-myClient = Client(connectionSocket, ADDR)
-sockets = [connectionSocket, sys.stdin]
+myClient = Client(balancer, ADDR)
+# sockets = [balancer, sys.stdin]
 
 while True:
-    readSocket, x, errorSocket = select.select(sockets,[],sockets)
+    readSocket, x, errorSocket = select.select(myClient.sockets,[],myClient.sockets)
     for inputSocket in readSocket:
-        if inputSocket == connectionSocket:
+        if inputSocket == sys.stdin:
+            myClient.sendMessage(inputSocket)
+        else:
             msgHeader = inputSocket.recv(HEADER_LENGTH)
             if not msgHeader:
-                sockets = []
+                myClient.sockets = []
                 break
-            myClient.recvMessage(int(msgHeader))
-        else:
-            myClient.sendMessage(inputSocket)
+            myClient.recvMessage(int(msgHeader.decode('utf-8')), inputSocket)
 
-    if sockets == []:
+    if myClient.sockets == []:
         break
 conn.close()
-connectionSocket.close()
+balancer.close()
