@@ -50,6 +50,7 @@ class Client:
             self.attemptSignup()
         else:
             self.attemptLogin()
+        print (self.username, "> " , end="", flush=True)
 
     def attemptLogin(self):
         while True:
@@ -197,8 +198,6 @@ class Client:
         
         msgJson = self.unpackJSON(msg)
         package = {"type": "connect", "to": None, "username": self.username, "time": time.time()}
-        packString = json.dumps(package)
-        packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
 
         if msgJson["type"] == "serverAssigned":
             self.serverAddr = (msgJson["serverIP"], msgJson["serverPort"])
@@ -207,7 +206,9 @@ class Client:
                 self.server.connect(self.serverAddr)
             except socket.error as e:
                 print(str(e))
-            print (self.server.getpeername())
+            package["assigned"] = True
+            packString = json.dumps(package)
+            packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
             self.server.send(packString.encode('utf-8'))
             
         elif msgJson["type"] == "servers":
@@ -223,6 +224,9 @@ class Client:
                         s.connect(addr)
                     except socket.error as e:
                         print(str(e))
+                    package["assigned"] = False
+                    packString = json.dumps(package)
+                    packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
                     s.send(packString.encode('utf-8'))
                     self.sockets.append(s)
 
@@ -231,11 +235,11 @@ class Client:
 
 
     def sendMessage(self, inputSocket):
-        msg = inputSocket.readline().strip()
-        if msg != "":
+        toUser = inputSocket.readline().strip()
+        if toUser != "":
             msgType = "text"
-            print ("Send To > ", end="", flush=True)
-            toUser = inputSocket.readline().strip()
+            print ("Message > ", end="", flush=True)
+            msg = inputSocket.readline().strip()
             cursor.execute("SELECT * FROM  clientinfo WHERE username = '%s'"% (toUser))
             a = cursor.fetchone()
             if len(a) == 0:
@@ -259,14 +263,16 @@ class Client:
             packet = self.packJSON(msgType, self.username, toUser, msg, filename)
             self.server.send(packet)
         
-        self.serverCounter += 1
-        if self.serverCounter == 5:
-            self.serverCounter = 0
-            package = {"type": "clientReassign", "username": self.username, "time": time.time()}
-            packString = json.dumps(package)
-            packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
-            self.balancer.send(packString.encode('utf-8'))
-            self.recvServers()
+            self.serverCounter += 1
+            if self.serverCounter == 5:
+                self.serverCounter = 0
+                package = {"type": "clientReassign", "username": self.username, "time": time.time()}
+                packString = json.dumps(package)
+                packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                self.balancer.send(packString.encode('utf-8'))
+                self.recvServers()
+        else:
+            print (self.username, "> ", end="", flush=True)
 
 
     def recvMessage(self, msgLength, inputSocket):
@@ -276,7 +282,21 @@ class Client:
         
         msgJson = self.unpackJSON(msg)
         
-        if msgJson["from"] == None:
+        if msgJson["type"] == "newServer":
+            package = {"type": "connect", "to": None, "username": self.username, "time": time.time()}
+            packString = json.dumps(package)
+            packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+
+            newServerAddr = (msgJson["serverIP"], msgJson["serverPort"])
+            try:
+                self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.server.connect(newServerAddr)
+            except socket.error as e:
+                print(str(e))
+            print (self.server.getpeername())
+            self.server.send(packString.encode('utf-8'))
+
+        if msgJson["type"] == "readReceipt":
             print (msgJson["message"])
             print (self.username, "> ", end="", flush=True)
             return
@@ -342,7 +362,6 @@ except socket.error as e:
     print(str(e))
 
 myClient = Client(balancer, ADDR)
-# sockets = [balancer, sys.stdin]
 
 while True:
     readSocket, x, errorSocket = select.select(myClient.sockets,[],myClient.sockets)
@@ -359,4 +378,6 @@ while True:
     if myClient.sockets == []:
         break
 conn.close()
-balancer.close()
+for server in myClient.sockets:
+    if server != sys.stdin:
+        server.close()

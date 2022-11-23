@@ -38,7 +38,6 @@ while True:
         if checkSocket == serverSideSocket:
             newClient, addr = serverSideSocket.accept()
             sockets.append(newClient)
-    
         else:
             try:
                 msgHeader = checkSocket.recv(BUFFER_LENGTH)
@@ -63,15 +62,34 @@ while True:
                 username = msgJson["username"]
                 clientByUsername[username] = checkSocket
                 clientBySockets[checkSocket] = username
-            if msgJson["to"] in clientByUsername and clientByUsername[msgJson["to"]] != checkSocket:
+                print (f"Connection created from: Username = '{username}' at {checkSocket.getpeername()}")
+                cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
+                if msgJson["assigned"] == True:
+                    cursor.execute("SELECT message FROM undelivered WHERE touser = '%s'"% (username))
+                    messages = cursor.fetchall()
+                    cursor.execute("DELETE FROM undelivered WHERE touser = '%s'"% (username))
+                    if len(messages) == 0:
+                        continue
+                    for m in messages:
+                        print ("Sending Message")
+                        checkSocket.send(eval(m[0]))
+                
+
+            elif msgJson["to"] in clientByUsername and clientByUsername[msgJson["to"]] != checkSocket:
                 clientByUsername[msgJson["to"]].send(msg)
-                readReceipt = json.dumps({"type": "text", "from": None, "message": "Message Delivered", "time": time.time()})
+                readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "Message Delivered", "time": time.time()})
+                readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
+                checkSocket.send(readReceipt.encode('utf-8'))
+            elif msgJson["to"] not in clientByUsername:
+                cursor.execute("INSERT INTO undelivered (time, touser, message) VALUES (%s, '%s', $$%s$$)"% (msgJson["time"], msgJson["to"], msg))
+                readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "User is offline, message will be sent when he comes online.", "time": time.time()})
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
 
     if serverSideSocket in errorSockets:
         conn.close()
         balancer.close()
+        quit()
 
     for checkSocket in errorSockets:
         sockets.remove(checkSocket)

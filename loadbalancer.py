@@ -71,7 +71,9 @@ def newClientConn(msgJson, client):
 
 def serverAssign(username, client):
     if client in clientToServer.keys():
-        serverLoad[clientToServer[client]] -= 1
+        l = serverLoad[clientToServer[client]]
+        del serverLoad[clientToServer[client]]
+        serverLoad[clientToServer[client]] = l-1
     pickedServer = serverLoad.popitem()
     serverLoad[pickedServer[0]] = pickedServer[1] + 1
     clientToServer[client] = pickedServer[0]
@@ -85,6 +87,12 @@ def newServerConn(msgJson, server):
     serverLoad[server] = 0
     serverIP.append(msgJson["ip"])
     serverPort.append(msgJson["port"])
+
+    newServer = {"type": "newServer", "serverIP": msgJson["ip"], "serverPort": msgJson["port"]}
+    newServer = json.dumps(newServer)
+    newServer = f'{len(newServer):<{HEADER_LENGTH}}' + newServer
+    for client in clientSockets:
+        client.send(newServer.encode('utf-8'))
     print (f"New Server listening at {addr}")
 
 
@@ -137,6 +145,7 @@ while True:
     for client in errorSockets:
         sockets.remove(client)
         if client in clientSockets:
+            serverLoad[clientToServer[client]] -= 1
             clientSockets.remove(client)
             del clientByUsername[clientBySockets[client]]
             del clientBySockets[client]
