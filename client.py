@@ -27,7 +27,13 @@ def userPresent(username):
     if len(user) == 1:
         return True
     else:
-        return False
+        cursor.execute("SELECT * FROM groupinfo WHERE groupname = '%s'"% (username))
+        group = cursor.fetchall()
+        if len(group) == 1:
+            return True
+        else:
+            return False
+        
 
 
 HOST = '127.0.0.1'
@@ -130,7 +136,7 @@ class Client:
                 username = input("Enter Username: ")
             if userPresent(username):
                 print ("Username not available, try another!!")
-            if username in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+            elif username in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
                 print ("Username Not Allowed, try another!!")
             else:
                 self.username = username
@@ -240,10 +246,14 @@ class Client:
                 groupName = input("Enter Group Name: ")
             if userPresent(groupName):
                 print ("Group Name not available, try another!!")
-            if groupName in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+            elif groupName in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
                 print ("Group Name Not Allowed, try another!!")
             else:
                 ## Action to create group with given group name, only having this member
+                package = {"type": "newGroup", "to": None, "groupName": groupName, "username": self.username, "time": time.time()}
+                packString = json.dumps(package)
+                packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                self.server.send(packString.encode('utf-8'))
                 break
         pass
 
