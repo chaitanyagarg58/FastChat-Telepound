@@ -130,6 +130,8 @@ class Client:
                 username = input("Enter Username: ")
             if userPresent(username):
                 print ("Username already exists, try another!!")
+            if username in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+                print ("Username Not Allowed, try another!!")
             else:
                 self.username = username
                 break
@@ -278,6 +280,9 @@ class Client:
     def recvMessage(self, msgLength, inputSocket):
         msg = b''
         while len(msg) < msgLength:
+            if len(msg) + BUFFER_LENGTH > msgLength:
+                msg = msg + inputSocket.recv(msgLength-len(msg))
+                break
             msg = msg + inputSocket.recv(BUFFER_LENGTH)
         
         msgJson = self.unpackJSON(msg)

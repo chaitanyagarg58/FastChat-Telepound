@@ -71,7 +71,6 @@ while True:
                     if len(messages) == 0:
                         continue
                     for m in messages:
-                        print ("Sending Message")
                         checkSocket.send(eval(m[0]))
                 
 
@@ -81,7 +80,7 @@ while True:
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
             elif msgJson["to"] not in clientByUsername:
-                cursor.execute("INSERT INTO undelivered (time, touser, message) VALUES (%s, '%s', $$%s$$)"% (msgJson["time"], msgJson["to"], msg))
+                cursor.execute("INSERT INTO undelivered (time, touser, message) VALUES (%s, '%s', $t1$%s$t1$)"% (msgJson["time"], msgJson["to"], msg))
                 readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "User is offline, message will be sent when he comes online.", "time": time.time()})
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
