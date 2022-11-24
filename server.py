@@ -46,7 +46,7 @@ while True:
 
             if not msgHeader:
                 print (f"Connection Closed from: Username = '{clientBySockets[checkSocket]}' at {checkSocket.getpeername()}")
-                cursor.execute("UPDATE clientinfo SET status = 'False' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
+                # cursor.execute("UPDATE clientinfo SET status = 'False' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
                 sockets.remove(checkSocket)
                 del clientByUsername[clientBySockets[checkSocket]]
                 del clientBySockets[checkSocket]
@@ -63,7 +63,7 @@ while True:
                 clientByUsername[username] = checkSocket
                 clientBySockets[checkSocket] = username
                 print (f"Connection created from: Username = '{username}' at {checkSocket.getpeername()}")
-                cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
+                # cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
                 if msgJson["assigned"] == True:
                     cursor.execute("SELECT message FROM undelivered WHERE touser = '%s'"% (username))
                     messages = cursor.fetchall()

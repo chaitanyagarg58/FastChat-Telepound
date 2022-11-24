@@ -129,7 +129,7 @@ class Client:
             while username == "":
                 username = input("Enter Username: ")
             if userPresent(username):
-                print ("Username already exists, try another!!")
+                print ("Username not available, try another!!")
             if username in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
                 print ("Username Not Allowed, try another!!")
             else:
@@ -233,19 +233,50 @@ class Client:
                     self.sockets.append(s)
 
 
+    def createGroup (self):
+        while True:
+            groupName = ""
+            while groupName == "":
+                groupName = input("Enter Group Name: ")
+            if userPresent(groupName):
+                print ("Group Name not available, try another!!")
+            if groupName in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+                print ("Group Name Not Allowed, try another!!")
+            else:
+                ## Action to create group with given group name, only having this member
+                break
+        pass
+
+    
+
+
+    def modifyGroup(self, msg):
+        groupName = input("Enter Group Name: ")
+        pass
+
+
+
+
 
 
 
     def sendMessage(self, inputSocket):
         toUser = inputSocket.readline().strip()
         if toUser != "":
+            if toUser == "CREATE GROUP":
+                self.createGroup()
+                return
+            elif toUser in ["ADD MEMBER", "DELETE MEMBER"]:
+                self.modifyGroup(toUser)
+                return
             msgType = "text"
             print ("Message > ", end="", flush=True)
             msg = inputSocket.readline().strip()
             cursor.execute("SELECT * FROM  clientinfo WHERE username = '%s'"% (toUser))
             a = cursor.fetchone()
-            if len(a) == 0:
+            if a == None:
                 print ("User does not exist, try again.", flush=True)
+                print (self.username, "> ", end="", flush=True)
                 return
             print ("Enter Filename if you want to attach it > ", end="", flush=True)
             filename = inputSocket.readline().strip()

@@ -58,10 +58,10 @@ def newClientConn(msgJson, client):
     clientBySockets[client] = username
     clientByUsername[username] = client
     if msgJson['action'] == 'signup':
-        cursor.execute("INSERT INTO clientinfo (username, status, ip, port, password, public_n, public_e, private_d, private_p, private_q, salt) VALUES ('%s', '%s', '%s', %s, '%s', '%s', '%s', '%s', '%s', '%s', $t1$%s$t1$)"% (username, True, addr[0], addr[1], msgJson["password"], str(msgJson["public_n"]), str(msgJson["public_e"]), str(msgJson["private_d"]), str(msgJson["private_p"]), str(msgJson["private_q"]), msgJson["salt"]))
+        cursor.execute("INSERT INTO clientinfo (username, password, public_n, public_e, private_d, private_p, private_q, salt) VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', $t1$%s$t1$)"% (username, msgJson["password"], str(msgJson["public_n"]), str(msgJson["public_e"]), str(msgJson["private_d"]), str(msgJson["private_p"]), str(msgJson["private_q"]), msgJson["salt"]))
         print (f"New User signup at Connection from: Username = {username} at {addr}")
     elif msgJson['action'] == 'login':
-        cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (addr[0], addr[1]))
+        # cursor.execute("UPDATE clientinfo SET status = 'True' WHERE ip = '%s' AND port = '%s'"% (addr[0], addr[1]))
         print (f"Old User login at Connection from: Username = {username} at {addr}")
 
     serverAssign(username, client)
@@ -109,7 +109,7 @@ while True:
             if not msgHeader:
                 if checkSocket in clientSockets:
                     print (f"Connection Closed from: Username = '{clientBySockets[checkSocket]}' at {checkSocket.getpeername()}")
-                    cursor.execute("UPDATE clientinfo SET status = 'False' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
+                    # cursor.execute("UPDATE clientinfo SET status = 'False' WHERE ip = '%s' AND port = '%s'"% (checkSocket.getpeername()[0], checkSocket.getpeername()[1]))
                     clientSockets.remove(checkSocket)
                     del clientByUsername[clientBySockets[checkSocket]]
                     del clientBySockets[checkSocket]

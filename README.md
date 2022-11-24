@@ -49,10 +49,8 @@
         2. client: role created granted power as: 'Grant client to postgres;'.
 
     - Database has 2 tables:
-        1. clientinfo: username (text), password (text), status (boolean), ip (text), port (integer), public_{n,e} (text), private_{d,p,q}, salt (text)
+        1. clientinfo: username (text), password (text), public_{n,e} (text), private_{d,p,q}, salt (text)
             - password is salted and hashed.
-            - status is a boolean telling if given client is online
-            - ip and port are the socket address for the client (not used yet)
             - The public_n and public_e define the public key of this client, this are stored as it is, so anyone can access these. Anyone wanting to send a message to this client using these values to encrypt the data
             - salt is randomly generated bitstring for encrypt of private keys of this user as mentioned nin next point.
             - The private_{d,p,q} are private keys of this client which are neccessary for decrypt the messages send to it. These keys should not be readable to anyone but this client. So these keys are symmetrically encrypted by using the salt to hash this users password, then using that as a key(k) to encrypt the private_{d,p,q} keys. The key k is also used to decrypt the private keys when loging in, but since no-one else has password of this user, they cannot know the key k, and hence can not read the private keys.
