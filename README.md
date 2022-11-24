@@ -45,8 +45,8 @@
     - If the admin leaves the group or removes himself, the group is deleted.
 
     - Database has 2 roles:
-        1. postgres: default role, used as server.
-        2. client: role created granted power as: 'Grant client to postgres;'.
+        1. postgres: default role, used as server, its password used is 'telepoundServer'.
+        2. client: role created to allow only SELECT command to users, its password used is 'telepoundClient'.
 
     - Database has 3 tables:
         1. clientinfo: username (text), password (text), public_{n,e} (text), private_{d,p,q}, salt (text)
