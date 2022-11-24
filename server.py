@@ -75,22 +75,46 @@ while True:
                         checkSocket.send(eval(m[0]))
             
             elif msgJson["type"] == "newGroup":
-                cursor.execute("INSERT INTO groupinfo (groupname, admin) VALUES ('%s', '%s')"% (msgJson["groupName"], msgJson["username"]))
+                cursor.execute("INSERT INTO groupinfo (groupname, admin, members) VALUES ('%s', '%s', ARRAY[$t1$%s$t1$])"% (msgJson["groupName"], msgJson["username"], msgJson["username"]))
                 readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "New Group Created.", "time": time.time()})
+                readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
+                checkSocket.send(readReceipt.encode('utf-8'))
+
+            elif msgJson["type"] == "addMember":
+                cursor.execute("UPDATE groupinfo SET members = array_append(members, $t1$%s$t1$) WHERE groupname = $t2$%s$t2$"% (msgJson["username"], msgJson["groupName"]))
+                readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "Member added to Group.", "time": time.time()})
+                readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
+                checkSocket.send(readReceipt.encode('utf-8'))
+            
+            elif msgJson["type"] == "removeMember" or msgJson["type"] == "leaveGroup":
+                cursor.execute("SELECT admin FROM groupinfo WHERE groupname = $t2$%s$t2$"% (msgJson["groupName"]))
+                admin = cursor.fetchone()[0]
+                readReceipt = {"type": "readReceipt", "from": None, "message": "Member removed from Group.", "time": time.time()}
+                if admin == msgJson["username"]:
+                    cursor.execute("DELETE FROM groupinfo WHERE groupname = $t2$%s$t2$"% (msgJson["groupName"]))
+                else:
+                    cursor.execute("UPDATE groupinfo SET members = array_remove(members, $t1$%s$t1$) WHERE groupname = $t2$%s$t2$"% (msgJson["username"], msgJson["groupName"]))
+                if msgJson["type"] == "leaveGroup":
+                    readReceipt["message"] = "You Left the Group."
+                if admin == msgJson["username"]:
+                    readReceipt["message"] = "You were group admin and you left the Group. Group has been deleted."
+                readReceipt = json.dumps(readReceipt)
                 readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
                 checkSocket.send(readReceipt.encode('utf-8'))
 
             elif msgJson["to"] in clientByUsername and clientByUsername[msgJson["to"]] != checkSocket:
                 clientByUsername[msgJson["to"]].send(msg)
-                readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "Message Delivered", "time": time.time()})
-                readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
-                checkSocket.send(readReceipt.encode('utf-8'))
+                if not msgJson["groupMsg"]:
+                    readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "Message Delivered", "time": time.time()})
+                    readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
+                    checkSocket.send(readReceipt.encode('utf-8'))
             
             elif msgJson["to"] not in clientByUsername:
                 cursor.execute("INSERT INTO undelivered (time, touser, message) VALUES (%s, '%s', $t1$%s$t1$)"% (msgJson["time"], msgJson["to"], msg))
-                readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "User is offline, message will be sent when he comes online.", "time": time.time()})
-                readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
-                checkSocket.send(readReceipt.encode('utf-8'))
+                if not msgJson["groupMsg"]:
+                    readReceipt = json.dumps({"type": "readReceipt", "from": None, "message": "User is offline, message will be sent when he comes online.", "time": time.time()})
+                    readReceipt = f'{len(readReceipt):<{HEADER_LENGTH}}'+ readReceipt
+                    checkSocket.send(readReceipt.encode('utf-8'))
 
     if serverSideSocket in errorSockets:
         conn.close()

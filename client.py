@@ -21,19 +21,21 @@ conn = psycopg2.connect(database="postgres", user='client', password='telepoundC
 conn.autocommit = True
 cursor = conn.cursor()
 
-def userPresent(username):
+def userExist(username):
     cursor.execute("SELECT * FROM clientinfo WHERE username = '%s'"% (username))
     user = cursor.fetchall()
     if len(user) == 1:
         return True
     else:
-        cursor.execute("SELECT * FROM groupinfo WHERE groupname = '%s'"% (username))
-        group = cursor.fetchall()
-        if len(group) == 1:
-            return True
-        else:
-            return False
+        return False
         
+def groupExist(groupname):
+    cursor.execute("SELECT * FROM groupinfo WHERE groupname = '%s'"% (groupname))
+    group = cursor.fetchall()
+    if len(group) == 1:
+        return True
+    else:
+        return False
 
 
 HOST = '127.0.0.1'
@@ -63,7 +65,7 @@ class Client:
             username = ""
             while username == "":
                 username = input("Enter Username: ")
-            if not userPresent(username):
+            if not userExist(username):
                 choice = input("User not found, if you wish to signup, enter [s]: ")
                 if choice == 's':
                     print ("Redirecting to Signup.")
@@ -134,9 +136,9 @@ class Client:
             username = ""
             while username == "":
                 username = input("Enter Username: ")
-            if userPresent(username):
+            if userExist(username) or groupExist(username):
                 print ("Username not available, try another!!")
-            elif username in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+            elif username in ["CREATE GROUP", "ADD MEMBER", "REMOVE MEMBER", "LEAVE GROUP"]:
                 print ("Username Not Allowed, try another!!")
             else:
                 self.username = username
@@ -244,30 +246,75 @@ class Client:
             groupName = ""
             while groupName == "":
                 groupName = input("Enter Group Name: ")
-            if userPresent(groupName):
+            if userExist(groupName) or groupExist(groupName):
                 print ("Group Name not available, try another!!")
-            elif groupName in ["CREATE GROUP", "ADD MEMBER", "DELETE MEMBER"]:
+            elif groupName in ["CREATE GROUP", "ADD MEMBER", "REMOVE MEMBER"]:
                 print ("Group Name Not Allowed, try another!!")
             else:
-                ## Action to create group with given group name, only having this member
                 package = {"type": "newGroup", "to": None, "groupName": groupName, "username": self.username, "time": time.time()}
                 packString = json.dumps(package)
                 packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
                 self.server.send(packString.encode('utf-8'))
                 break
-        pass
-
-    
 
 
     def modifyGroup(self, msg):
+        cursor.execute("SELECT groupname FROM groupinfo WHERE admin='%s'"% (self.username))
+        groups = cursor.fetchall()
         groupName = input("Enter Group Name: ")
-        pass
+        if (groupName,) not in groups:
+            print ("Group does not exist or You do not have admin privelege on group. No changes made.")
+            print (self.username, "> ", end="", flush=True)
+            return
+        else:
+            cursor.execute("SELECT members FROM groupinfo WHERE groupname='%s'"% (groupName))
+            members = cursor.fetchall()[0][0]
+            if msg == "ADD MEMBER":
+                user = input ("Enter User to add: ")
+                if user in members:
+                    print ("User is already in Group, No changes made.")
+                    print (self.username, "> ", end="", flush=True)
+                    return
+                elif not userExist(user):
+                    print ("User does not exist, No changes made.")
+                    print (self.username, "> ", end="", flush=True)
+                    return
+                else:
+                    package = {"type": "addMember", "to": None, "groupName": groupName, "username": user, "time": time.time()}
+                    packString = json.dumps(package)
+                    packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                    self.server.send(packString.encode('utf-8'))
+            
+            elif msg == "REMOVE MEMBER":
+                user = input ("Enter User to remove: ")
+                if user not in members:
+                    print ("No such User in Group, No changes made.")
+                    print (self.username, "> ", end="", flush=True)
+                    return
+                else:
+                    package = {"type": "removeMember", "to": None, "groupName": groupName, "username": user, "time": time.time()}
+                    packString = json.dumps(package)
+                    packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                    self.server.send(packString.encode('utf-8'))
 
-
-
-
-
+    
+    def leaveGroup(self):
+        while True:
+            groupName = ""
+            while groupName == "":
+                groupName = input("Enter Group Name: ")
+            cursor.execute("SELECT members FROM groupinfo WHERE groupname='%s'"% (groupName))
+            members = cursor.fetchall()[0][0]
+            if self.username not in members:
+                print ("You are not a member of such group. No changes made.")
+                print (self.username, "> ", end="", flush=True)
+                return
+            else:
+                package = {"type": "leaveGroup", "to": None, "groupName": groupName, "username": self.username, "time": time.time()}
+                packString = json.dumps(package)
+                packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                self.server.send(packString.encode('utf-8'))
+                break
 
 
     def sendMessage(self, inputSocket):
@@ -276,18 +323,24 @@ class Client:
             if toUser == "CREATE GROUP":
                 self.createGroup()
                 return
-            elif toUser in ["ADD MEMBER", "DELETE MEMBER"]:
+            elif toUser in ["ADD MEMBER", "REMOVE MEMBER"]:
                 self.modifyGroup(toUser)
                 return
+            elif toUser == "LEAVE GROUP":
+                self.leaveGroup()
+                return
+
+            uExist = userExist(toUser)
+            gExist = groupExist(toUser)
+            if not (uExist or gExist):
+                print ("User/Group does not exist, try again.", flush=True)
+                print (self.username, "> ", end="", flush=True)
+                return
+            
             msgType = "text"
             print ("Message > ", end="", flush=True)
             msg = inputSocket.readline().strip()
-            cursor.execute("SELECT * FROM  clientinfo WHERE username = '%s'"% (toUser))
-            a = cursor.fetchone()
-            if a == None:
-                print ("User does not exist, try again.", flush=True)
-                print (self.username, "> ", end="", flush=True)
-                return
+    
             print ("Enter Filename if you want to attach it > ", end="", flush=True)
             filename = inputSocket.readline().strip()
             if filename != "":
@@ -303,17 +356,36 @@ class Client:
             else:
                 filename = None
 
-            packet = self.packJSON(msgType, self.username, toUser, msg, filename)
-            self.server.send(packet)
-        
-            self.serverCounter += 1
-            if self.serverCounter == 5:
-                self.serverCounter = 0
-                package = {"type": "clientReassign", "username": self.username, "time": time.time()}
-                packString = json.dumps(package)
-                packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
-                self.balancer.send(packString.encode('utf-8'))
-                self.recvServers()
+            if uExist:
+                packet = self.packJSON(msgType, self.username, toUser, msg, filename, False)
+                self.server.send(packet)
+                self.serverCounter += 1
+                if self.serverCounter == 5:
+                    self.serverCounter = 0
+                    package = {"type": "clientReassign", "username": self.username, "time": time.time()}
+                    packString = json.dumps(package)
+                    packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                    self.balancer.send(packString.encode('utf-8'))
+                    self.recvServers()
+            else:
+                cursor.execute("SELECT members FROM groupinfo WHERE groupname=$$%s$$"% (toUser))
+                members = cursor.fetchall()[0][0]
+                for member in members:
+                    if member == self.username:
+                        continue
+                    packet = self.packJSON(msgType, 'Group ' + toUser + ': ' + self.username, member, msg, filename, True)
+                    self.server.send(packet)
+                    self.serverCounter += 1
+                    if self.serverCounter == 5:
+                        self.serverCounter = 0
+                        package = {"type": "clientReassign", "username": self.username, "time": time.time()}
+                        packString = json.dumps(package)
+                        packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
+                        self.balancer.send(packString.encode('utf-8'))
+                        self.recvServers()
+                print ("Message will reach users when they are online.")
+                print (self.username, "> ", end="", flush=True)
+
         else:
             print (self.username, "> ", end="", flush=True)
 
@@ -349,7 +421,7 @@ class Client:
 
         timeFormated = datetime.datetime.fromtimestamp(msgJson["time"])
         print ('\n\t', timeFormated.strftime('%a, %-d/%-m/%Y'))
-        print(msgJson["from"], ": ", rsa.decrypt(msgJson["message"].encode('latin-1'), self.private).decode('utf-8'), '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
+        print(msgJson["from"], " > ", rsa.decrypt(msgJson["message"].encode('latin-1'), self.private).decode('utf-8'), '\n', "Time: ", timeFormated.strftime('%-I:%M %p'), sep="", flush=True)
         if msgJson["type"] == "file":
             print ("A file is attached, do you want to download it? (y/n)[n] > ", end="", flush=True)
             res = sys.stdin.readline().strip()
@@ -365,13 +437,13 @@ class Client:
         print (self.username, "> ", end="", flush=True)
             
 
-    def packJSON(self, type, fromUser, toUser, msg, filename):
+    def packJSON(self, type, fromUser, toUser, msg, filename, groupMsg):
         cursor.execute("SELECT public_n, public_e FROM clientinfo WHERE username = '%s'"% (toUser))
         (n,e,) = cursor.fetchone()
         n, e = int(n), int(e)
         pubKey = rsa.PublicKey(n, e)
         msg = rsa.encrypt(msg.encode('utf-8'), pubKey).decode('latin-1')
-        package = {"type": type, "from": fromUser, "to": toUser, "message": msg, "filename": filename, "time": time.time()}
+        package = {"type": type, "from": fromUser, "to": toUser, "message": msg, "filename": filename, "time": time.time(), "groupMsg": groupMsg}
         
         if filename != None:
             with open(filename, "rb") as file:
@@ -401,7 +473,6 @@ class Client:
 
 
 balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print('Waiting for connection response')
 try:
     balancer.connect((HOST, PORT))
 except socket.error as e:
