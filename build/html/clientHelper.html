@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>clientHelper module &mdash; FastChat  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Telepound" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> FastChat
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Telepound</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">clientHelper module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FastChat</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="modules.html">Telepound</a> &raquo;</li>
+      <li>clientHelper module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/clientHelper.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="module-clientHelper">
+<span id="clienthelper-module"></span><h1>clientHelper module<a class="headerlink" href="#module-clientHelper" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="clientHelper.Client">
+<em class="property">class </em><code class="descclassname">clientHelper.</code><code class="descname">Client</code><span class="sig-paren">(</span><em>balancer_</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class contains all the functionalities of a client.</p>
+<dl class="method">
+<dt id="clientHelper.Client.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>balancer_</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructor Method.
+This method initialises member variables of class and also initialised signup/login process.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>balancer</strong> (<em>socket.socket</em>) – This is the socket of the load balancer we are connected to.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.attemptLogin">
+<code class="descname">attemptLogin</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.attemptLogin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.attemptLogin" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method completes login process.
+It completes the login process including:</p>
+<ol class="arabic simple">
+<li>Takes username and password inputs and verifies if correct or not.</li>
+<li>Retrieves the public and private of the client and stores them.</li>
+<li>Sends login details to server.</li>
+</ol>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.attemptSignup">
+<code class="descname">attemptSignup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.attemptSignup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.attemptSignup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method completes Signup process.
+It does the following:</p>
+<ol class="arabic simple">
+<li>Checks if the given username is valid.</li>
+<li>Confirms password.</li>
+<li>Generate rsa encryption keys for this client.</li>
+<li>Sends new user information to server to be stored.</li>
+</ol>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.createGroup">
+<code class="descname">createGroup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.createGroup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.createGroup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles new Group creation.</p>
+<p>It takes groupname as user input, checks if it is valid, and sends group info to server for group to be created.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.leaveGroup">
+<code class="descname">leaveGroup</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.leaveGroup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.leaveGroup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles leaving a group.</p>
+<p>It takes groupname from user and if client is in the group, it sends informaiton to server for changes to be made.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.modifyGroup">
+<code class="descname">modifyGroup</code><span class="sig-paren">(</span><em>msg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.modifyGroup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.modifyGroup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles modification of group, adding of removing members.</p>
+<p>If takes required groupname and member name from user, checks if they are valid, and sends information to server for changs to be made.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>msg</strong> (<em>string</em>) – This is the type of modification requested.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.packJSON">
+<code class="descname">packJSON</code><span class="sig-paren">(</span><em>type</em>, <em>fromUser</em>, <em>toUser</em>, <em>msg</em>, <em>filename</em>, <em>groupMsg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.packJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.packJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method packs a json object with given information, mainly for sending messages to another user.</p>
+<p>This method, while reading and attaching files, encrypts them.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>type</strong> (<em>string</em>) – This is the type of message we are sending.</li>
+<li><strong>fromUser</strong> (<em>string</em>) – Username of this client, the user sending this message.</li>
+<li><strong>toUser</strong> (<em>string</em>) – Username of client we want to send message to.</li>
+<li><strong>msg</strong> (<em>string</em>) – THe message to be sent (encrypted).</li>
+<li><strong>filename</strong> (<em>string</em>) – The name/path of the file to be attached.</li>
+<li><strong>groupMsg</strong> (<em>bool</em>) – If the message is the group message or individual.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.packJSONlogin">
+<code class="descname">packJSONlogin</code><span class="sig-paren">(</span><em>username</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.packJSONlogin"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.packJSONlogin" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method packs a json object for the login info to send to server.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>username</strong> (<em>string</em>) – The username of the client that logged in.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.packJSONsignup">
+<code class="descname">packJSONsignup</code><span class="sig-paren">(</span><em>username</em>, <em>passwd</em>, <em>public_key</em>, <em>private_d</em>, <em>private_p</em>, <em>private_q</em>, <em>saltPrivate</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.packJSONsignup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.packJSONsignup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method packs a json object for the signup info to send to server.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>username</strong> (<em>string</em>) – The username of the client that logged in.</li>
+<li><strong>passwrd</strong> (<em>string</em>) – The password of this client (encrypted).</li>
+<li><strong>public_key</strong> (<em>rsa.PublicKey</em>) – The public rsa key of this client, contains n and e values.</li>
+<li><strong>private_d</strong> (<em>string</em>) – The d value of private key of this client (encrypted).</li>
+<li><strong>private_p</strong> (<em>string</em>) – The p value of private key of this client (encrypted).</li>
+<li><strong>private_q</strong> (<em>string</em>) – The q value of private key of this client (encrypted).</li>
+<li><strong>saltPrivate</strong> (<em>string</em>) – The salt used to encrypt the private keys.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.recvMessage">
+<code class="descname">recvMessage</code><span class="sig-paren">(</span><em>msgLength</em>, <em>inputSocket</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.recvMessage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.recvMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method receives a msg is any connection/server tries to send one and handles all cases for types of messages.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgLength</strong> (<em>int</em>) – The length of the message to be received.</li>
+<li><strong>inputSocket</strong> (<em>socket.socket</em>) – The socket which is trying to send message.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.recvServers">
+<code class="descname">recvServers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.recvServers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.recvServers" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function is used to receive active servers information from the load balancer.</p>
+<p>If it receives a singal assigned server, it stores it’s information.</p>
+<p>If it receives all the servers online, it stores them and connects to all.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.sendMessage">
+<code class="descname">sendMessage</code><span class="sig-paren">(</span><em>inputSocket</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.sendMessage"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.sendMessage" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles everything that can happen if The user enters some instruction.</p>
+<p>It initializes group creation/modification if appropriate command is entered.</p>
+<p>Else it sends specified message to the specified user/group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>inputSocket</strong> (<em>socket.socket</em>) – The socket in which the user is giving input.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="clientHelper.Client.unpackJSON">
+<code class="descname">unpackJSON</code><span class="sig-paren">(</span><em>packString</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#Client.unpackJSON"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.Client.unpackJSON" title="Permalink to this definition">¶</a></dt>
+<dd><p>This message unpacks any json strings and returns the json object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>packString</strong> (<em>string</em>) – The string to be unpacked.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="clientHelper.groupExist">
+<code class="descclassname">clientHelper.</code><code class="descname">groupExist</code><span class="sig-paren">(</span><em>groupname</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#groupExist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.groupExist" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function finds if a group of given groupname exists or not.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>groupname</strong> (<em>string</em>) – The groupname we want to find.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="clientHelper.userExist">
+<code class="descclassname">clientHelper.</code><code class="descname">userExist</code><span class="sig-paren">(</span><em>username</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/clientHelper.html#userExist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#clientHelper.userExist" title="Permalink to this definition">¶</a></dt>
+<dd><p>This function finds if a user of given username exists or not.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>username</strong> (<em>string</em>) – The username we want to find.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="Telepound" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Telepound.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

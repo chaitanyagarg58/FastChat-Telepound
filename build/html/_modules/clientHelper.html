@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>clientHelper &mdash; FastChat  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> FastChat
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Telepound</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FastChat</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Module code</a> &raquo;</li>
+      <li>clientHelper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for clientHelper</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+<span class="kn">import</span> <span class="nn">bcrypt</span>
+<span class="kn">import</span> <span class="nn">rsa</span>
+<span class="kn">from</span> <span class="nn">cryptography.fernet</span> <span class="kn">import</span> <span class="n">Fernet</span>
+<span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives</span> <span class="kn">import</span> <span class="n">hashes</span>
+<span class="kn">from</span> <span class="nn">cryptography.hazmat.primitives.kdf.pbkdf2</span> <span class="kn">import</span> <span class="n">PBKDF2HMAC</span>
+
+
+<span class="n">HEADER_LENGTH</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">BUFFER_LENGTH</span> <span class="o">=</span> <span class="mi">4096</span>
+<span class="n">FILE_BUFFER</span> <span class="o">=</span> <span class="mi">117</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">&quot;postgres&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="s1">&#39;client&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;telepoundClient&#39;</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span> <span class="s1">&#39;5432&#39;</span><span class="p">)</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="userExist"><a class="viewcode-back" href="../clientHelper.html#clientHelper.userExist">[docs]</a><span class="k">def</span> <span class="nf">userExist</span><span class="p">(</span><span class="n">username</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This function finds if a user of given username exists or not.</span>
+
+<span class="sd">    :param username: The username we want to find.</span>
+<span class="sd">    :type username: string</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM clientinfo WHERE username = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">))</span>
+    <span class="n">user</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+        
+<div class="viewcode-block" id="groupExist"><a class="viewcode-back" href="../clientHelper.html#clientHelper.groupExist">[docs]</a><span class="k">def</span> <span class="nf">groupExist</span><span class="p">(</span><span class="n">groupname</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This function finds if a group of given groupname exists or not.</span>
+
+<span class="sd">    :param groupname: The groupname we want to find.</span>
+<span class="sd">    :type groupname: string</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM groupinfo WHERE groupname = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">groupname</span><span class="p">))</span>
+    <span class="n">group</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">group</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="Client"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client">[docs]</a><span class="k">class</span> <span class="nc">Client</span><span class="p">:</span>
+    <span class="sd">&#39;&#39;&#39;</span>
+<span class="sd">    This class contains all the functionalities of a client.</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+<div class="viewcode-block" id="Client.__init__"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">balancer_</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;Constructor Method.</span>
+<span class="sd">        This method initialises member variables of class and also initialised signup/login process.</span>
+
+<span class="sd">        :param balancer_: This is the socket of the load balancer we are connected to.</span>
+<span class="sd">        :type balancer_: socket.socket</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span> <span class="o">=</span> <span class="n">balancer_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverAddr</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sockets</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="p">,</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">public</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">private</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Sign-up(s) or Login(l) (s/l) [l] &gt; &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attemptSignup</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attemptLogin</span><span class="p">()</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span> <span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Client.attemptLogin"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.attemptLogin">[docs]</a>    <span class="k">def</span> <span class="nf">attemptLogin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method completes login process.</span>
+<span class="sd">        It completes the login process including:</span>
+
+<span class="sd">        1. Takes username and password inputs and verifies if correct or not.</span>
+
+<span class="sd">        2. Retrieves the public and private of the client and stores them.</span>
+
+<span class="sd">        3. Sends login details to server.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">username</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">while</span> <span class="n">username</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Username: &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">userExist</span><span class="p">(</span><span class="n">username</span><span class="p">):</span>
+                <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;User not found, if you wish to signup, enter [s]: &quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s1">&#39;s&#39;</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Redirecting to Signup.&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">attemptSignup</span><span class="p">()</span>
+                    <span class="k">return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Retry Login.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT password FROM clientinfo WHERE username = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">))</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">retry</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span> <span class="p">(</span><span class="mi">5</span><span class="p">):</span>
+                    <span class="n">passwd</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Password: &quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">checkpw</span><span class="p">(</span><span class="n">passwd</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">p</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)):</span>
+                        <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Login Succesful!!&quot;</span><span class="p">)</span>
+                        <span class="k">break</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Wrong Password, attempt 5/5&quot;</span><span class="p">)</span>
+                            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Maximum limit reached, aborting program!!&quot;</span><span class="p">)</span>
+                            <span class="n">conn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+                            <span class="n">quit</span><span class="p">()</span>
+                        <span class="n">choice</span> <span class="o">=</span> <span class="nb">input</span> <span class="p">(</span><span class="s2">&quot;Wrong Password, attempt </span><span class="si">%s</span><span class="s2">/5 | press (i) to change username: &quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">))</span>
+                        <span class="k">if</span> <span class="n">choice</span> <span class="o">==</span> <span class="s1">&#39;i&#39;</span><span class="p">:</span>
+                            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Retry Login.&quot;</span><span class="p">)</span>
+                            <span class="n">retry</span> <span class="o">=</span> <span class="kc">True</span>
+                            <span class="k">break</span>
+                <span class="k">if</span> <span class="n">retry</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="k">break</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT public_n, public_e, private_d, private_p, private_q, salt FROM clientinfo WHERE username = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">))</span>
+        <span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">e</span><span class="p">,</span><span class="n">d</span><span class="p">,</span><span class="n">p</span><span class="p">,</span><span class="n">q</span><span class="p">,</span><span class="n">salt</span><span class="p">)</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">e</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="n">salt</span> <span class="o">=</span> <span class="n">salt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">)</span>
+        <span class="n">kdf</span> <span class="o">=</span> <span class="n">PBKDF2HMAC</span><span class="p">(</span>
+            <span class="n">algorithm</span><span class="o">=</span><span class="n">hashes</span><span class="o">.</span><span class="n">SHA256</span><span class="p">(),</span>
+            <span class="n">length</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+            <span class="n">salt</span><span class="o">=</span><span class="n">salt</span><span class="p">,</span>
+            <span class="n">iterations</span><span class="o">=</span><span class="mi">480000</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">kdf</span><span class="o">.</span><span class="n">derive</span><span class="p">(</span><span class="n">passwd</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)))</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">Fernet</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">q</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">public</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">PublicKey</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">private</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">PrivateKey</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">q</span><span class="p">)</span>
+
+        <span class="n">packet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packJSONlogin</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="Client.packJSONlogin"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.packJSONlogin">[docs]</a>    <span class="k">def</span> <span class="nf">packJSONlogin</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method packs a json object for the login info to send to server.</span>
+
+<span class="sd">        :param username: The username of the client that logged in.</span>
+<span class="sd">        :type username: string</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;connectionClient&quot;</span><span class="p">,</span> <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;login&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+        <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+        <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+        <span class="k">return</span> <span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Client.attemptSignup"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.attemptSignup">[docs]</a>    <span class="k">def</span> <span class="nf">attemptSignup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method completes Signup process.</span>
+<span class="sd">        It does the following:</span>
+
+<span class="sd">        1. Checks if the given username is valid.</span>
+
+<span class="sd">        2. Confirms password.</span>
+<span class="sd">        </span>
+<span class="sd">        3. Generate rsa encryption keys for this client.</span>
+<span class="sd">        </span>
+<span class="sd">        4. Sends new user information to server to be stored.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">username</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">while</span> <span class="n">username</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">username</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Username: &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">userExist</span><span class="p">(</span><span class="n">username</span><span class="p">)</span> <span class="ow">or</span> <span class="n">groupExist</span><span class="p">(</span><span class="n">username</span><span class="p">):</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Username not available, try another!!&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">username</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;CREATE GROUP&quot;</span><span class="p">,</span> <span class="s2">&quot;ADD MEMBER&quot;</span><span class="p">,</span> <span class="s2">&quot;REMOVE MEMBER&quot;</span><span class="p">,</span> <span class="s2">&quot;LEAVE GROUP&quot;</span><span class="p">]:</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Username Not Allowed, try another!!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="o">=</span> <span class="n">username</span>
+                <span class="k">break</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>    
+            <span class="n">passwd</span> <span class="o">=</span> <span class="nb">input</span> <span class="p">(</span><span class="s2">&quot;Create Password: &quot;</span><span class="p">)</span>
+            <span class="n">passwd2</span> <span class="o">=</span> <span class="nb">input</span> <span class="p">(</span><span class="s2">&quot;Confirm Password: &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">passwd</span> <span class="o">==</span> <span class="n">passwd2</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Sign-up Successful !!&quot;</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Passwords don&#39;t match, Retry !!!&quot;</span><span class="p">)</span>
+        
+        <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">public</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">)</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">newkeys</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">passwd</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="n">salt</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">gensalt</span><span class="p">()</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="n">bcrypt</span><span class="o">.</span><span class="n">hashpw</span><span class="p">(</span><span class="n">password</span><span class="p">,</span> <span class="n">salt</span><span class="p">)</span>
+
+        <span class="n">saltPrivate</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">16</span><span class="p">)</span>
+        <span class="n">kdf</span> <span class="o">=</span> <span class="n">PBKDF2HMAC</span><span class="p">(</span>
+            <span class="n">algorithm</span><span class="o">=</span><span class="n">hashes</span><span class="o">.</span><span class="n">SHA256</span><span class="p">(),</span>
+            <span class="n">length</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span>
+            <span class="n">salt</span><span class="o">=</span><span class="n">saltPrivate</span><span class="p">,</span>
+            <span class="n">iterations</span><span class="o">=</span><span class="mi">480000</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">urlsafe_b64encode</span><span class="p">(</span><span class="n">kdf</span><span class="o">.</span><span class="n">derive</span><span class="p">(</span><span class="n">passwd</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)))</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">Fernet</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+        <span class="n">private_d</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">[</span><span class="s1">&#39;d&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">private_p</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">[</span><span class="s1">&#39;p&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">private_q</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">[</span><span class="s1">&#39;q&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+
+        <span class="n">packet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packJSONsignup</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">password</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">public</span><span class="p">,</span> <span class="n">private_d</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">private_p</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">private_q</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">saltPrivate</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="Client.packJSONsignup"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.packJSONsignup">[docs]</a>    <span class="k">def</span> <span class="nf">packJSONsignup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">,</span> <span class="n">public_key</span><span class="p">,</span> <span class="n">private_d</span><span class="p">,</span> <span class="n">private_p</span><span class="p">,</span> <span class="n">private_q</span><span class="p">,</span> <span class="n">saltPrivate</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method packs a json object for the signup info to send to server.</span>
+
+<span class="sd">        :param username: The username of the client that logged in.</span>
+<span class="sd">        :type username: string</span>
+
+<span class="sd">        :param passwrd: The password of this client (encrypted).</span>
+<span class="sd">        :type passwrd: string</span>
+
+<span class="sd">        :param public_key: The public rsa key of this client, contains n and e values.</span>
+<span class="sd">        :type public_key: rsa.PublicKey</span>
+
+<span class="sd">        :param private_d: The d value of private key of this client (encrypted).</span>
+<span class="sd">        :type private_d: string</span>
+
+<span class="sd">        :param private_p: The p value of private key of this client (encrypted).</span>
+<span class="sd">        :type private_p: string</span>
+
+<span class="sd">        :param private_q: The q value of private key of this client (encrypted).</span>
+<span class="sd">        :type private_q: string</span>
+
+<span class="sd">        :param saltPrivate: The salt used to encrypt the private keys.</span>
+<span class="sd">        :type saltPrivate: string</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">package</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;connectionClient&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;signup&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">username</span><span class="p">,</span>
+            <span class="s2">&quot;password&quot;</span><span class="p">:</span> <span class="n">passwd</span><span class="p">,</span>
+            <span class="s2">&quot;public_n&quot;</span><span class="p">:</span> <span class="n">public_key</span><span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">],</span>
+            <span class="s2">&quot;public_e&quot;</span><span class="p">:</span> <span class="n">public_key</span><span class="p">[</span><span class="s1">&#39;e&#39;</span><span class="p">],</span>
+            <span class="s2">&quot;private_d&quot;</span><span class="p">:</span> <span class="n">private_d</span><span class="p">,</span>
+            <span class="s2">&quot;private_p&quot;</span><span class="p">:</span> <span class="n">private_p</span><span class="p">,</span>
+            <span class="s2">&quot;private_q&quot;</span><span class="p">:</span> <span class="n">private_q</span><span class="p">,</span>
+            <span class="s2">&quot;salt&quot;</span><span class="p">:</span> <span class="n">saltPrivate</span><span class="p">,</span>
+            <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+        <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+        <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+        <span class="k">return</span> <span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span></div>
+    
+
+
+<div class="viewcode-block" id="Client.recvServers"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.recvServers">[docs]</a>    <span class="k">def</span> <span class="nf">recvServers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This function is used to receive active servers information from the load balancer.</span>
+<span class="sd">        </span>
+<span class="sd">        If it receives a singal assigned server, it stores it&#39;s information.</span>
+
+<span class="sd">        If it receives all the servers online, it stores them and connects to all.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">svrHeader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">HEADER_LENGTH</span><span class="p">)</span>
+        <span class="n">svrLength</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">svrHeader</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">svrLength</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">+</span> <span class="n">BUFFER_LENGTH</span> <span class="o">&gt;</span> <span class="n">svrLength</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">svrLength</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+                <span class="k">break</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">BUFFER_LENGTH</span><span class="p">)</span>
+        
+        <span class="n">msgJson</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpackJSON</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;connect&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+
+        <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;serverAssigned&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">serverAddr</span> <span class="o">=</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverIP&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverPort&quot;</span><span class="p">])</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">serverAddr</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="n">package</span><span class="p">[</span><span class="s2">&quot;assigned&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+            <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+            
+        <span class="k">elif</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;servers&quot;</span><span class="p">:</span>
+            <span class="n">ip</span> <span class="o">=</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverIP&quot;</span><span class="p">]</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverPort&quot;</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ip</span><span class="p">)):</span>
+                <span class="n">addr</span> <span class="o">=</span> <span class="p">(</span><span class="n">ip</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">port</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">addr</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">serverAddr</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sockets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">s</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">s</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+                    <span class="n">package</span><span class="p">[</span><span class="s2">&quot;assigned&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                    <span class="n">s</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">sockets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Client.createGroup"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.createGroup">[docs]</a>    <span class="k">def</span> <span class="nf">createGroup</span> <span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method handles new Group creation.</span>
+<span class="sd">        </span>
+<span class="sd">        It takes groupname as user input, checks if it is valid, and sends group info to server for group to be created.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">groupName</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">while</span> <span class="n">groupName</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">groupName</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Group Name: &quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">userExist</span><span class="p">(</span><span class="n">groupName</span><span class="p">)</span> <span class="ow">or</span> <span class="n">groupExist</span><span class="p">(</span><span class="n">groupName</span><span class="p">):</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Group Name not available, try another!!&quot;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">groupName</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;CREATE GROUP&quot;</span><span class="p">,</span> <span class="s2">&quot;ADD MEMBER&quot;</span><span class="p">,</span> <span class="s2">&quot;REMOVE MEMBER&quot;</span><span class="p">]:</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Group Name Not Allowed, try another!!&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;newGroup&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="n">groupName</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+                <span class="k">break</span></div>
+
+
+<div class="viewcode-block" id="Client.modifyGroup"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.modifyGroup">[docs]</a>    <span class="k">def</span> <span class="nf">modifyGroup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method handles modification of group, adding of removing members.</span>
+
+<span class="sd">        If takes required groupname and member name from user, checks if they are valid, and sends information to server for changs to be made.</span>
+
+<span class="sd">        :param msg: This is the type of modification requested.</span>
+<span class="sd">        :type msg: string</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT groupname FROM groupinfo WHERE admin=&#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">))</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">groupName</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Group Name: &quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">groupName</span><span class="p">,)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Group does not exist or You do not have admin privelege on group. No changes made.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT members FROM groupinfo WHERE groupname=&#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">groupName</span><span class="p">))</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">msg</span> <span class="o">==</span> <span class="s2">&quot;ADD MEMBER&quot;</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="nb">input</span> <span class="p">(</span><span class="s2">&quot;Enter User to add: &quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">user</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;User is already in Group, No changes made.&quot;</span><span class="p">)</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="n">userExist</span><span class="p">(</span><span class="n">user</span><span class="p">):</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;User does not exist, No changes made.&quot;</span><span class="p">)</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;addMember&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="n">groupName</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+            
+            <span class="k">elif</span> <span class="n">msg</span> <span class="o">==</span> <span class="s2">&quot;REMOVE MEMBER&quot;</span><span class="p">:</span>
+                <span class="n">user</span> <span class="o">=</span> <span class="nb">input</span> <span class="p">(</span><span class="s2">&quot;Enter User to remove: &quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">user</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;No such User in Group, No changes made.&quot;</span><span class="p">)</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="k">return</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;removeMember&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="n">groupName</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">user</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+    
+<div class="viewcode-block" id="Client.leaveGroup"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.leaveGroup">[docs]</a>    <span class="k">def</span> <span class="nf">leaveGroup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method handles leaving a group.</span>
+<span class="sd">        </span>
+<span class="sd">        It takes groupname from user and if client is in the group, it sends informaiton to server for changes to be made.</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">groupName</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="k">while</span> <span class="n">groupName</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="n">groupName</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s2">&quot;Enter Group Name: &quot;</span><span class="p">)</span>
+            <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT members FROM groupinfo WHERE groupname=&#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">groupName</span><span class="p">))</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;You are not a member of such group. No changes made.&quot;</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;leaveGroup&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;groupName&quot;</span><span class="p">:</span> <span class="n">groupName</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+                <span class="k">break</span></div>
+
+
+<div class="viewcode-block" id="Client.sendMessage"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.sendMessage">[docs]</a>    <span class="k">def</span> <span class="nf">sendMessage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputSocket</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method handles everything that can happen if The user enters some instruction.</span>
+<span class="sd">        </span>
+<span class="sd">        It initializes group creation/modification if appropriate command is entered.</span>
+<span class="sd">        </span>
+<span class="sd">        Else it sends specified message to the specified user/group.</span>
+
+<span class="sd">        :param inputSocket: The socket in which the user is giving input.</span>
+<span class="sd">        :type inputSocket: socket.socket</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">toUser</span> <span class="o">=</span> <span class="n">inputSocket</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">toUser</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">toUser</span> <span class="o">==</span> <span class="s2">&quot;CREATE GROUP&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">createGroup</span><span class="p">()</span>
+                <span class="k">return</span>
+            <span class="k">elif</span> <span class="n">toUser</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;ADD MEMBER&quot;</span><span class="p">,</span> <span class="s2">&quot;REMOVE MEMBER&quot;</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">modifyGroup</span><span class="p">(</span><span class="n">toUser</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">elif</span> <span class="n">toUser</span> <span class="o">==</span> <span class="s2">&quot;LEAVE GROUP&quot;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">leaveGroup</span><span class="p">()</span>
+                <span class="k">return</span>
+
+            <span class="n">uExist</span> <span class="o">=</span> <span class="n">userExist</span><span class="p">(</span><span class="n">toUser</span><span class="p">)</span>
+            <span class="n">gExist</span> <span class="o">=</span> <span class="n">groupExist</span><span class="p">(</span><span class="n">toUser</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">uExist</span> <span class="ow">or</span> <span class="n">gExist</span><span class="p">):</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;User/Group does not exist, try again.&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">return</span>
+            
+            <span class="n">msgType</span> <span class="o">=</span> <span class="s2">&quot;text&quot;</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Message &gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">inputSocket</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    
+            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Enter Filename if you want to attach it &gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">inputSocket</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">filename</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+                        <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Attaching folder is not Supported!! Sending message without attachment.&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="n">filename</span> <span class="o">=</span> <span class="kc">None</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">msgType</span> <span class="o">=</span> <span class="s2">&quot;file&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;File does not exist!! Sending without file.&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                    <span class="n">filename</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">uExist</span><span class="p">:</span>
+                <span class="n">packet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packJSON</span><span class="p">(</span><span class="n">msgType</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="n">toUser</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">=</span> <span class="mi">0</span>
+                    <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;clientReassign&quot;</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                    <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT members FROM groupinfo WHERE groupname=$$</span><span class="si">%s</span><span class="s2">$$&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">toUser</span><span class="p">))</span>
+                <span class="n">members</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">member</span> <span class="ow">in</span> <span class="n">members</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">member</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">packet</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">packJSON</span><span class="p">(</span><span class="n">msgType</span><span class="p">,</span> <span class="s1">&#39;Group &#39;</span> <span class="o">+</span> <span class="n">toUser</span> <span class="o">+</span> <span class="s1">&#39;: &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="n">member</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packet</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">serverCounter</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;clientReassign&quot;</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                        <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+                        <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">balancer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">recvServers</span><span class="p">()</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Message will reach users when they are online.&quot;</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Client.recvMessage"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.recvMessage">[docs]</a>    <span class="k">def</span> <span class="nf">recvMessage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msgLength</span><span class="p">,</span> <span class="n">inputSocket</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method receives a msg is any connection/server tries to send one and handles all cases for types of messages.</span>
+
+<span class="sd">        :param msgLength: The length of the message to be received.</span>
+<span class="sd">        :type msgLength: int</span>
+
+<span class="sd">        :param inputSocket: The socket which is trying to send message.</span>
+<span class="sd">        :type inputSocket: socket.socket</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">msgLength</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="o">+</span> <span class="n">BUFFER_LENGTH</span> <span class="o">&gt;</span> <span class="n">msgLength</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">inputSocket</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">msgLength</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">msg</span><span class="p">))</span>
+                <span class="k">break</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="n">msg</span> <span class="o">+</span> <span class="n">inputSocket</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">BUFFER_LENGTH</span><span class="p">)</span>
+        
+        <span class="n">msgJson</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unpackJSON</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;newServer&quot;</span><span class="p">:</span>
+            <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;connect&quot;</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+            <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+            <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+
+            <span class="n">newServerAddr</span> <span class="o">=</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverIP&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;serverPort&quot;</span><span class="p">])</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">newServerAddr</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">getpeername</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">])</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="n">timeFormated</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">])</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">timeFormated</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%a</span><span class="s1">, </span><span class="si">%-d</span><span class="s1">/%-m/%Y&#39;</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;from&quot;</span><span class="p">],</span> <span class="s2">&quot; &gt; &quot;</span><span class="p">,</span> <span class="n">rsa</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s2">&quot;Time: &quot;</span><span class="p">,</span> <span class="n">timeFormated</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%-I:%M %p&#39;</span><span class="p">),</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;A file is attached, do you want to download it? (y/n)[n] &gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdin</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">res</span> <span class="o">==</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span>
+                <span class="n">byteArray</span> <span class="o">=</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">]</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">byte</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">byteArray</span><span class="p">:</span>
+                    <span class="n">byte</span> <span class="o">+=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">decrypt</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">private</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">decodeit</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span>
+                <span class="n">decodeit</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">((</span><span class="n">byte</span><span class="p">)))</span>
+                <span class="n">decodeit</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">username</span><span class="p">,</span> <span class="s2">&quot;&gt; &quot;</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+            
+
+<div class="viewcode-block" id="Client.packJSON"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.packJSON">[docs]</a>    <span class="k">def</span> <span class="nf">packJSON</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">fromUser</span><span class="p">,</span> <span class="n">toUser</span><span class="p">,</span> <span class="n">msg</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">groupMsg</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This method packs a json object with given information, mainly for sending messages to another user.</span>
+<span class="sd">        </span>
+<span class="sd">        This method, while reading and attaching files, encrypts them.</span>
+
+<span class="sd">        :param type: This is the type of message we are sending.</span>
+<span class="sd">        :type type: string</span>
+
+<span class="sd">        :param fromUser: Username of this client, the user sending this message.</span>
+<span class="sd">        :type fromUser: string</span>
+
+<span class="sd">        :param toUser: Username of client we want to send message to.</span>
+<span class="sd">        :type toUser: string</span>
+
+<span class="sd">        :param msg: THe message to be sent (encrypted).</span>
+<span class="sd">        :type msg: string</span>
+
+<span class="sd">        :param filename: The name/path of the file to be attached.</span>
+<span class="sd">        :type filename: string</span>
+
+<span class="sd">        :param groupMsg: If the message is the group message or individual.</span>
+<span class="sd">        :type groupMsg: bool</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT public_n, public_e FROM clientinfo WHERE username = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">toUser</span><span class="p">))</span>
+        <span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">e</span><span class="p">,)</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">e</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="n">pubKey</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">PublicKey</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">msg</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">pubKey</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">)</span>
+        <span class="n">package</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="n">fromUser</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="n">toUser</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="n">msg</span><span class="p">,</span> <span class="s2">&quot;filename&quot;</span><span class="p">:</span> <span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span> <span class="s2">&quot;groupMsg&quot;</span><span class="p">:</span> <span class="n">groupMsg</span><span class="p">}</span>
+        
+        <span class="k">if</span> <span class="n">filename</span> <span class="o">!=</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+                <span class="n">fileString</span> <span class="o">=</span> <span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">filename</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">fileArray</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">fileString</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">i</span><span class="o">+</span><span class="n">FILE_BUFFER</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">fileString</span><span class="p">):</span>     
+                        <span class="n">temp</span> <span class="o">=</span> <span class="n">fileString</span><span class="p">[</span><span class="n">i</span><span class="p">:]</span>
+                        <span class="n">fileArray</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">pubKey</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">))</span>
+                        <span class="k">break</span>
+                    <span class="n">temp</span> <span class="o">=</span> <span class="n">fileString</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">FILE_BUFFER</span><span class="p">]</span>
+                    <span class="n">fileArray</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">temp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">pubKey</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">))</span>
+                    <span class="n">i</span> <span class="o">=</span> <span class="n">i</span> <span class="o">+</span> <span class="n">FILE_BUFFER</span>
+                <span class="n">package</span><span class="p">[</span><span class="s2">&quot;file&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fileArray</span>
+                <span class="n">package</span><span class="p">[</span><span class="s2">&quot;filename&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rsa</span><span class="o">.</span><span class="n">encrypt</span><span class="p">(</span><span class="n">filename</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">),</span> <span class="n">pubKey</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;latin-1&#39;</span><span class="p">)</span>
+
+        <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+        <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">packString</span>
+        <span class="k">return</span> <span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span></div>
+   
+<div class="viewcode-block" id="Client.unpackJSON"><a class="viewcode-back" href="../clientHelper.html#clientHelper.Client.unpackJSON">[docs]</a>    <span class="k">def</span> <span class="nf">unpackJSON</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packString</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;This message unpacks any json strings and returns the json object.</span>
+
+<span class="sd">        :param packString: The string to be unpacked.</span>
+<span class="sd">        :type packString: string</span>
+<span class="sd">        &#39;&#39;&#39;</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Telepound.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

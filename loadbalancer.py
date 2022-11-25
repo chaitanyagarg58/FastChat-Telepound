@@ -15,7 +15,7 @@ conn.autocommit = True
 cursor = conn.cursor()
 
 HOST = '127.0.0.1'
-PORT = int(sys.argv[1])
+PORT = 5000
 balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancer.bind((HOST, PORT))
 print('Balancer is Online')
@@ -33,10 +33,24 @@ clientByUsername = {}
 sockets = [balancer]
 
 
-def packJSONConnClient(type, fromUser, to, serverIP, serverPort):
+def packJSONConnClient(type, to, serverIP, serverPort):
+    # '''This method is to create and pack a Json object with the given information, speciaized for use when a client connects.
+
+    # :param type: The type of the message, the key to distinguish different kind of messages.
+    # :type type: string
+
+    # :param to: Username of client this message is to be sent to.
+    # :type to: string
+
+    # :param serverIP: the IP details of the server(s) we want to send.
+    # :type serverIP: string, list
+
+    # :param serverPort: the port details of the server(s) we want to send.
+    # :type serverPort: int, list
+    # '''
     package = {
         "type": type,
-        "from": fromUser,
+        "from": None,
         "to": to,
         "serverIP": serverIP,
         "serverPort": serverPort,
@@ -64,7 +78,7 @@ def newClientConn(msgJson, client):
         print (f"Old User login at Connection from: Username = {username} at {addr}")
 
     serverAssign(username, client)
-    serverAll = packJSONConnClient("servers", None, username, serverIP, serverPort)
+    serverAll = packJSONConnClient("servers", username, serverIP, serverPort)
     client.send(serverAll)
     
 
@@ -77,7 +91,7 @@ def serverAssign(username, client):
     serverLoad[pickedServer[0]] = pickedServer[1] + 1
     clientToServer[client] = pickedServer[0]
     index = serverSockets.index(pickedServer[0])
-    serverAssigned = packJSONConnClient("serverAssigned", None, username, serverIP[index], serverPort[index])
+    serverAssigned = packJSONConnClient("serverAssigned", username, serverIP[index], serverPort[index])
     client.send(serverAssigned)
 
 
