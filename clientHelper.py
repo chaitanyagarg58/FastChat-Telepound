@@ -17,6 +17,7 @@ HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
 FILE_BUFFER = 117
 
+
 conn = psycopg2.connect(database="postgres", user='client', password='telepoundClient', host='127.0.0.1', port= '5432')
 conn.autocommit = True
 cursor = conn.cursor()
@@ -35,7 +36,8 @@ def userExist(username):
         return True
     else:
         return False
-        
+
+
 def groupExist(groupname):
     '''
     This function finds if a group of given groupname exists or not.
@@ -76,6 +78,7 @@ class Client:
         else:
             self.attemptLogin()
         print (self.username, "> " , end="", flush=True)
+
 
     def attemptLogin(self):
         '''This method completes login process.
@@ -147,7 +150,6 @@ class Client:
         self.balancer.send(packet)
         self.recvServers()
         self.recvServers()
-
 
 
     def packJSONlogin(self, username):
@@ -259,7 +261,6 @@ class Client:
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
     
-
 
     def recvServers(self):
         '''This function is used to receive active servers information from the load balancer.
@@ -593,6 +594,7 @@ class Client:
         packString = json.dumps(package)
         packString = f'{len(packString):<{HEADER_LENGTH}}'+ packString
         return packString.encode('utf-8')
+   
    
     def unpackJSON(self, packString):
         '''This message unpacks any json strings and returns the json object.

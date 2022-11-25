@@ -2,15 +2,19 @@ import json
 import time
 import psycopg2
 
+
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
+
 
 conn = psycopg2.connect(database="postgres", user='postgres', password='telepoundServer', host='127.0.0.1', port='5432')
 conn.autocommit = True
 cursor = conn.cursor()
 
+
 clientBySockets = {}
 clientByUsername = {}
+
 
 def newConnection(msgJson, client):
     '''This method handles events if new client connects to this server.

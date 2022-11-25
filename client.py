@@ -4,15 +4,18 @@ import sys
 import psycopg2
 from clientHelper import *
 
+
 HOST = '127.0.0.1'
 PORT = int(sys.argv[1])
 ADDR = (HOST, PORT)
+
 
 balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     balancer.connect((HOST, PORT))
 except socket.error as e:
     print(str(e))
+
 
 myClient = Client(balancer)
 
@@ -30,6 +33,8 @@ while True:
 
     if myClient.sockets == []:
         break
+
+
 conn.close()
 for server in myClient.sockets:
     if server != sys.stdin:

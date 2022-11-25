@@ -30,6 +30,7 @@ while True:
                     clientSockets.remove(checkSocket)
                     del clientByUsername[clientBySockets[checkSocket]]
                     del clientBySockets[checkSocket]
+               
                 elif checkSocket in serverSockets:
                     index = serverSockets.index(checkSocket)
                     addr = (serverIP[index], serverPort[index])
@@ -38,6 +39,7 @@ while True:
                     serverIP.remove(addr[0])
                     serverPort.remove(addr[1])
                     del serverLoad[checkSocket]
+               
                 sockets.remove(checkSocket)
                 break
 
@@ -66,6 +68,7 @@ while True:
             clientSockets.remove(client)
             del clientByUsername[clientBySockets[client]]
             del clientBySockets[client]
+       
         elif client in serverSockets:
             serverSockets.remove(client)
             addr = client.getpeername()

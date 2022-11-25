@@ -3,8 +3,10 @@ import time
 import psycopg2
 import heapdict
 
+
 HEADER_LENGTH = 10
 BUFFER_LENGTH = 4096
+
 
 conn = psycopg2.connect(database="postgres", user='postgres', password='telepoundServer', host='127.0.0.1', port='5432')
 conn.autocommit = True
@@ -49,7 +51,6 @@ def packJSONConnClient(type, to, serverIP, serverPort):
     return packString.encode('utf-8')
 
 
-
 def unpackJSON(packString):
     '''This message unpacks any json strings and returns the json object.
 
@@ -84,7 +85,6 @@ def newClientConn(msgJson, client):
     client.send(serverAll)
     
 
-
 def serverAssign(username, client):
     '''This method assigns the sever, with least load factor, to the given cient.
 
@@ -104,7 +104,6 @@ def serverAssign(username, client):
     index = serverSockets.index(pickedServer[0])
     serverAssigned = packJSONConnClient("serverAssigned", username, serverIP[index], serverPort[index])
     client.send(serverAssigned)
-
 
 
 def newServerConn(msgJson, server, addr):
