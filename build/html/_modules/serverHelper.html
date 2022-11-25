@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>serverHelper &mdash; FastChat  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> FastChat
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Telepound</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FastChat</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Module code</a> &raquo;</li>
+      <li>serverHelper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for serverHelper</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+
+<span class="n">HEADER_LENGTH</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">BUFFER_LENGTH</span> <span class="o">=</span> <span class="mi">4096</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">&quot;postgres&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="s1">&#39;postgres&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;telepoundServer&#39;</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="s1">&#39;5432&#39;</span><span class="p">)</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+<span class="n">clientBySockets</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">clientByUsername</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="newConnection"><a class="viewcode-back" href="../serverHelper.html#serverHelper.newConnection">[docs]</a><span class="k">def</span> <span class="nf">newConnection</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events if new client connects to this server.</span>
+
+<span class="sd">    :param msgJson: This is the message sent by client for new connection request.</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: This is the client who established new connection.</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">username</span> <span class="o">=</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]</span>
+    <span class="n">clientByUsername</span><span class="p">[</span><span class="n">username</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span>
+    <span class="n">clientBySockets</span><span class="p">[</span><span class="n">client</span><span class="p">]</span> <span class="o">=</span> <span class="n">username</span>
+    <span class="nb">print</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Connection created from: Username = &#39;</span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s2">&#39; at </span><span class="si">{</span><span class="n">client</span><span class="o">.</span><span class="n">getpeername</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;assigned&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT message FROM undelivered WHERE touser = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">))</span>
+        <span class="n">messages</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;DELETE FROM undelivered WHERE touser = &#39;</span><span class="si">%s</span><span class="s2">&#39;&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">messages</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">messages</span><span class="p">:</span>
+            <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="nb">eval</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span></div>
+
+
+<div class="viewcode-block" id="newGroup"><a class="viewcode-back" href="../serverHelper.html#serverHelper.newGroup">[docs]</a><span class="k">def</span> <span class="nf">newGroup</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events when client sends a request to create a new group.</span>
+
+<span class="sd">    :param msgJson: The request message send by client</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client who send the request</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;INSERT INTO groupinfo (groupname, admin, members) VALUES (&#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, ARRAY[$t1$</span><span class="si">%s</span><span class="s2">$t1$])&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]))</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;New Group Created.&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()})</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">readReceipt</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">readReceipt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="addMember"><a class="viewcode-back" href="../serverHelper.html#serverHelper.addMember">[docs]</a><span class="k">def</span> <span class="nf">addMember</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events when client sends a request to add a member to a group.</span>
+
+<span class="sd">    :param msgJson: The request message send by client</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client who send the request</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;UPDATE groupinfo SET members = array_append(members, $t1$</span><span class="si">%s</span><span class="s2">$t1$) WHERE groupname = $t2$</span><span class="si">%s</span><span class="s2">$t2$&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]))</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Member added to Group.&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()})</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">readReceipt</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">readReceipt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="removeMember"><a class="viewcode-back" href="../serverHelper.html#serverHelper.removeMember">[docs]</a><span class="k">def</span> <span class="nf">removeMember</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events when client sends a request to remove a member from a group, or leave a group.</span>
+
+<span class="sd">    :param msgJson: The request message send by client</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client who send the request</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT admin FROM groupinfo WHERE groupname = $t2$</span><span class="si">%s</span><span class="s2">$t2$&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]))</span>
+    <span class="n">admin</span> <span class="o">=</span> <span class="n">cursor</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Member removed from Group.&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+    <span class="k">if</span> <span class="n">admin</span> <span class="o">==</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;DELETE FROM groupinfo WHERE groupname = $t2$</span><span class="si">%s</span><span class="s2">$t2$&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;UPDATE groupinfo SET members = array_remove(members, $t1$</span><span class="si">%s</span><span class="s2">$t1$) WHERE groupname = $t2$</span><span class="si">%s</span><span class="s2">$t2$&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupName&quot;</span><span class="p">]))</span>
+    <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;leaveGroup&quot;</span><span class="p">:</span>
+        <span class="n">readReceipt</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;You Left the Group.&quot;</span>
+    <span class="k">if</span> <span class="n">admin</span> <span class="o">==</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]:</span>
+        <span class="n">readReceipt</span><span class="p">[</span><span class="s2">&quot;message&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;You were group admin and you left the Group. Group has been deleted.&quot;</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span>
+    <span class="n">readReceipt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">readReceipt</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">readReceipt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="sendMsg"><a class="viewcode-back" href="../serverHelper.html#serverHelper.sendMsg">[docs]</a><span class="k">def</span> <span class="nf">sendMsg</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events when client sends a message to another user or group and the user is online.</span>
+
+<span class="sd">    :param msgJson: The unpacked message send by client</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client who send the request</span>
+<span class="sd">    :type client: socket.socket</span>
+
+<span class="sd">    :param msg: The packed/complete message sent by the client</span>
+<span class="sd">    :type msg: bit string</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">clientByUsername</span><span class="p">[</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;to&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupMsg&quot;</span><span class="p">]:</span>
+        <span class="n">readReceipt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;Message Delivered&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()})</span>
+        <span class="n">readReceipt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">readReceipt</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">readReceipt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="storeMsg"><a class="viewcode-back" href="../serverHelper.html#serverHelper.storeMsg">[docs]</a><span class="k">def</span> <span class="nf">storeMsg</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">,</span> <span class="n">msg</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events when client sends a message to another user or group and the user is offline.</span>
+
+<span class="sd">    :param msgJson: The unpacked message send by client</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client who send the request</span>
+<span class="sd">    :type client: socket.socket</span>
+
+<span class="sd">    :param msg: The packed/complete message sent by the client</span>
+<span class="sd">    :type msg: bit string</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;INSERT INTO undelivered (time, touser, message) VALUES (</span><span class="si">%s</span><span class="s2">, &#39;</span><span class="si">%s</span><span class="s2">&#39;, $t1$</span><span class="si">%s</span><span class="s2">$t1$)&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;time&quot;</span><span class="p">],</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;to&quot;</span><span class="p">],</span> <span class="n">msg</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;groupMsg&quot;</span><span class="p">]:</span>
+        <span class="n">readReceipt</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;readReceipt&quot;</span><span class="p">,</span> <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="s2">&quot;User is offline, message will be sent when he comes online.&quot;</span><span class="p">,</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()})</span>
+        <span class="n">readReceipt</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">readReceipt</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span><span class="o">+</span> <span class="n">readReceipt</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">readReceipt</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Telepound.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

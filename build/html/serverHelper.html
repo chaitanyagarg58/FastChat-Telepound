@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>serverHelper module &mdash; FastChat  documentation</title><link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script type="text/javascript" src="_static/jquery.js"></script>
+        <script type="text/javascript" src="_static/underscore.js"></script>
+        <script type="text/javascript" src="_static/doctools.js"></script>
+        <script type="text/javascript" src="_static/language_data.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="balancerHelper module" href="balancerHelper.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> FastChat
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">Telepound</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="clientHelper.html">clientHelper module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="balancerHelper.html">balancerHelper module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">serverHelper module</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">FastChat</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="modules.html">Telepound</a> &raquo;</li>
+      <li>serverHelper module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/serverHelper.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <div class="section" id="module-serverHelper">
+<span id="serverhelper-module"></span><h1>serverHelper module<a class="headerlink" href="#module-serverHelper" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="serverHelper.addMember">
+<code class="descclassname">serverHelper.</code><code class="descname">addMember</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#addMember"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.addMember" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events when client sends a request to add a member to a group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – The request message send by client</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – The client who send the request</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="serverHelper.newConnection">
+<code class="descclassname">serverHelper.</code><code class="descname">newConnection</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#newConnection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.newConnection" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events if new client connects to this server.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – This is the message sent by client for new connection request.</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – This is the client who established new connection.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="serverHelper.newGroup">
+<code class="descclassname">serverHelper.</code><code class="descname">newGroup</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#newGroup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.newGroup" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events when client sends a request to create a new group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – The request message send by client</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – The client who send the request</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="serverHelper.removeMember">
+<code class="descclassname">serverHelper.</code><code class="descname">removeMember</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#removeMember"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.removeMember" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events when client sends a request to remove a member from a group, or leave a group.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – The request message send by client</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – The client who send the request</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="serverHelper.sendMsg">
+<code class="descclassname">serverHelper.</code><code class="descname">sendMsg</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em>, <em>msg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#sendMsg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.sendMsg" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events when client sends a message to another user or group and the user is online.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – The unpacked message send by client</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – The client who send the request</li>
+<li><strong>msg</strong> (<em>bit string</em>) – The packed/complete message sent by the client</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="serverHelper.storeMsg">
+<code class="descclassname">serverHelper.</code><code class="descname">storeMsg</code><span class="sig-paren">(</span><em>msgJson</em>, <em>client</em>, <em>msg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/serverHelper.html#storeMsg"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#serverHelper.storeMsg" title="Permalink to this definition">¶</a></dt>
+<dd><p>This method handles events when client sends a message to another user or group and the user is offline.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>msgJson</strong> (<em>dict</em>) – The unpacked message send by client</li>
+<li><strong>client</strong> (<em>socket.socket</em>) – The client who send the request</li>
+<li><strong>msg</strong> (<em>bit string</em>) – The packed/complete message sent by the client</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="balancerHelper.html" class="btn btn-neutral float-left" title="balancerHelper module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Telepound.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

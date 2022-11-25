@@ -6,3 +6,4 @@ Telepound
 
    clientHelper
    balancerHelper
+   serverHelper

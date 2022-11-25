@@ -1,7 +1,4 @@
-import socket
-import select
 import json
-import sys
 import time
 import psycopg2
 import heapdict
