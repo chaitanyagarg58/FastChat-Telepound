@@ -4,16 +4,8 @@ import sys
 import psycopg2
 from clientHelper import *
 
-HEADER_LENGTH = 10
-BUFFER_LENGTH = 4096
-FILE_BUFFER = 117
-
-conn = psycopg2.connect(database="postgres", user='client', password='telepoundClient', host='127.0.0.1', port= '5432')
-conn.autocommit = True
-cursor = conn.cursor()
-
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = int(sys.argv[1])
 ADDR = (HOST, PORT)
 
 balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

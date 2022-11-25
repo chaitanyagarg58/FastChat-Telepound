@@ -5,3 +5,4 @@ Telepound
    :maxdepth: 4
 
    clientHelper
+   balancerHelper

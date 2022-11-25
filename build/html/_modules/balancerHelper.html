@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html class="writer-html4" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>balancerHelper &mdash; FastChat  documentation</title><link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script type="text/javascript" src="../_static/jquery.js"></script>
+        <script type="text/javascript" src="../_static/underscore.js"></script>
+        <script type="text/javascript" src="../_static/doctools.js"></script>
+        <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> FastChat
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules.html">Telepound</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">FastChat</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="index.html">Module code</a> &raquo;</li>
+      <li>balancerHelper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for balancerHelper</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">select</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">psycopg2</span>
+<span class="kn">import</span> <span class="nn">heapdict</span>
+
+<span class="n">HEADER_LENGTH</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">BUFFER_LENGTH</span> <span class="o">=</span> <span class="mi">4096</span>
+
+<span class="n">conn</span> <span class="o">=</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">database</span><span class="o">=</span><span class="s2">&quot;postgres&quot;</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="s1">&#39;postgres&#39;</span><span class="p">,</span> <span class="n">password</span><span class="o">=</span><span class="s1">&#39;telepoundServer&#39;</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="s1">&#39;5432&#39;</span><span class="p">)</span>
+<span class="n">conn</span><span class="o">.</span><span class="n">autocommit</span> <span class="o">=</span> <span class="kc">True</span>
+<span class="n">cursor</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span>
+
+
+<span class="n">serverSockets</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">serverIP</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">serverPort</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">serverLoad</span> <span class="o">=</span> <span class="n">heapdict</span><span class="o">.</span><span class="n">heapdict</span><span class="p">()</span>
+<span class="n">clientToServer</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">clientSockets</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="n">clientBySockets</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">clientByUsername</span> <span class="o">=</span> <span class="p">{}</span>
+
+
+<div class="viewcode-block" id="packJSONConnClient"><a class="viewcode-back" href="../balancerHelper.html#balancerHelper.packJSONConnClient">[docs]</a><span class="k">def</span> <span class="nf">packJSONConnClient</span><span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">to</span><span class="p">,</span> <span class="n">serverIP</span><span class="p">,</span> <span class="n">serverPort</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method is to create and pack a Json object with the given information, speciaized for use when a client connects.</span>
+
+<span class="sd">    :param type: The type of the message, the key to distinguish different kind of messages.</span>
+<span class="sd">    :type type: string</span>
+
+<span class="sd">    :param to: Username of client this message is to be sent to.</span>
+<span class="sd">    :type to: string</span>
+
+<span class="sd">    :param serverIP: the IP details of the server(s) we want to send.</span>
+<span class="sd">    :type serverIP: string, list</span>
+
+<span class="sd">    :param serverPort: the port details of the server(s) we want to send.</span>
+<span class="sd">    :type serverPort: int, list</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">package</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="nb">type</span><span class="p">,</span>
+        <span class="s2">&quot;from&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;to&quot;</span><span class="p">:</span> <span class="n">to</span><span class="p">,</span>
+        <span class="s2">&quot;serverIP&quot;</span><span class="p">:</span> <span class="n">serverIP</span><span class="p">,</span>
+        <span class="s2">&quot;serverPort&quot;</span><span class="p">:</span> <span class="n">serverPort</span><span class="p">,</span>
+        <span class="s2">&quot;time&quot;</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="p">}</span>
+    <span class="n">packString</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+    <span class="n">packString</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">packString</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">packString</span>
+    <span class="k">return</span> <span class="n">packString</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="unpackJSON"><a class="viewcode-back" href="../balancerHelper.html#balancerHelper.unpackJSON">[docs]</a><span class="k">def</span> <span class="nf">unpackJSON</span><span class="p">(</span><span class="n">packString</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This message unpacks any json strings and returns the json object.</span>
+
+<span class="sd">    :param packString: The string to be unpacked.</span>
+<span class="sd">    :type packString: string</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">packString</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="newClientConn"><a class="viewcode-back" href="../balancerHelper.html#balancerHelper.newClientConn">[docs]</a><span class="k">def</span> <span class="nf">newClientConn</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles all the changes to be made if a new Client logins or signs up.</span>
+<span class="sd">    </span>
+<span class="sd">    :param msgJson: The msg received as login/signup request from user.</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param client: The client where login/signup occured.</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">clientSockets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client</span><span class="p">)</span>
+    <span class="n">username</span> <span class="o">=</span> <span class="n">msgJson</span><span class="p">[</span><span class="s1">&#39;username&#39;</span><span class="p">]</span>
+    <span class="n">addr</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">getpeername</span><span class="p">()</span>
+    <span class="n">clientBySockets</span><span class="p">[</span><span class="n">client</span><span class="p">]</span> <span class="o">=</span> <span class="n">username</span>
+    <span class="n">clientByUsername</span><span class="p">[</span><span class="n">username</span><span class="p">]</span> <span class="o">=</span> <span class="n">client</span>
+    <span class="k">if</span> <span class="n">msgJson</span><span class="p">[</span><span class="s1">&#39;action&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;signup&#39;</span><span class="p">:</span>
+        <span class="n">cursor</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;INSERT INTO clientinfo (username, password, public_n, public_e, private_d, private_p, private_q, salt) VALUES (&#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, &#39;</span><span class="si">%s</span><span class="s2">&#39;, $t1$</span><span class="si">%s</span><span class="s2">$t1$)&quot;</span><span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;password&quot;</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;public_n&quot;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;public_e&quot;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;private_d&quot;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;private_p&quot;</span><span class="p">]),</span> <span class="nb">str</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;private_q&quot;</span><span class="p">]),</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;salt&quot;</span><span class="p">]))</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;New User signup at Connection from: Username = </span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">msgJson</span><span class="p">[</span><span class="s1">&#39;action&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;login&#39;</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Old User login at Connection from: Username = </span><span class="si">{</span><span class="n">username</span><span class="si">}</span><span class="s2"> at </span><span class="si">{</span><span class="n">addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">serverAssign</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">client</span><span class="p">)</span>
+    <span class="n">serverAll</span> <span class="o">=</span> <span class="n">packJSONConnClient</span><span class="p">(</span><span class="s2">&quot;servers&quot;</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">serverIP</span><span class="p">,</span> <span class="n">serverPort</span><span class="p">)</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">serverAll</span><span class="p">)</span></div>
+    
+
+
+<div class="viewcode-block" id="serverAssign"><a class="viewcode-back" href="../balancerHelper.html#balancerHelper.serverAssign">[docs]</a><span class="k">def</span> <span class="nf">serverAssign</span><span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">client</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method assigns the sever, with least load factor, to the given cient.</span>
+
+<span class="sd">    :param username: The username of client which requested to assign server.</span>
+<span class="sd">    :type username: string</span>
+
+<span class="sd">    :param client: The client to assign server to.</span>
+<span class="sd">    :type client: socket.socket</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clientToServer</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="n">serverLoad</span><span class="p">[</span><span class="n">clientToServer</span><span class="p">[</span><span class="n">client</span><span class="p">]]</span>
+        <span class="k">del</span> <span class="n">serverLoad</span><span class="p">[</span><span class="n">clientToServer</span><span class="p">[</span><span class="n">client</span><span class="p">]]</span>
+        <span class="n">serverLoad</span><span class="p">[</span><span class="n">clientToServer</span><span class="p">[</span><span class="n">client</span><span class="p">]]</span> <span class="o">=</span> <span class="n">l</span><span class="o">-</span><span class="mi">1</span>
+    <span class="n">pickedServer</span> <span class="o">=</span> <span class="n">serverLoad</span><span class="o">.</span><span class="n">popitem</span><span class="p">()</span>
+    <span class="n">serverLoad</span><span class="p">[</span><span class="n">pickedServer</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">pickedServer</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">clientToServer</span><span class="p">[</span><span class="n">client</span><span class="p">]</span> <span class="o">=</span> <span class="n">pickedServer</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="n">serverSockets</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">pickedServer</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">serverAssigned</span> <span class="o">=</span> <span class="n">packJSONConnClient</span><span class="p">(</span><span class="s2">&quot;serverAssigned&quot;</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">serverIP</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="n">serverPort</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+    <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">serverAssigned</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="newServerConn"><a class="viewcode-back" href="../balancerHelper.html#balancerHelper.newServerConn">[docs]</a><span class="k">def</span> <span class="nf">newServerConn</span><span class="p">(</span><span class="n">msgJson</span><span class="p">,</span> <span class="n">server</span><span class="p">,</span> <span class="n">addr</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;This method handles events if a new server is made online.</span>
+
+<span class="sd">    :param msgJson: The msg received from the new server when it came online.</span>
+<span class="sd">    :type msgJson: dict</span>
+
+<span class="sd">    :param server: The server which came online.</span>
+<span class="sd">    :type server: socket.socket</span>
+
+<span class="sd">    :param addr: The addr of the new server</span>
+<span class="sd">    :type addr: tuple</span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="n">serverSockets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">server</span><span class="p">)</span>
+    <span class="n">serverLoad</span><span class="p">[</span><span class="n">server</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">serverIP</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;ip&quot;</span><span class="p">])</span>
+    <span class="n">serverPort</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;port&quot;</span><span class="p">])</span>
+
+    <span class="n">newServer</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;newServer&quot;</span><span class="p">,</span> <span class="s2">&quot;serverIP&quot;</span><span class="p">:</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;ip&quot;</span><span class="p">],</span> <span class="s2">&quot;serverPort&quot;</span><span class="p">:</span> <span class="n">msgJson</span><span class="p">[</span><span class="s2">&quot;port&quot;</span><span class="p">]}</span>
+    <span class="n">newServer</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">newServer</span><span class="p">)</span>
+    <span class="n">newServer</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">newServer</span><span class="p">)</span><span class="si">:</span><span class="s1">&lt;</span><span class="si">{</span><span class="n">HEADER_LENGTH</span><span class="si">}}</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="n">newServer</span>
+    <span class="k">for</span> <span class="n">client</span> <span class="ow">in</span> <span class="n">clientSockets</span><span class="p">:</span>
+        <span class="n">client</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">newServer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+    <span class="nb">print</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;New Server listening at </span><span class="si">{</span><span class="n">addr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Telepound.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

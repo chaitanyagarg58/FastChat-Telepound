@@ -14,7 +14,7 @@ cursor = conn.cursor()
 
 
 HOST = '127.0.0.1'
-PORT = 5000
+PORT = int(sys.argv[1])
 balancer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancer.connect((HOST, PORT))
 
