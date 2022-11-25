@@ -10,6 +10,7 @@
     - Atharv Kshirsagar (210050025) contributed in Encryption, Groups and SignUp/login.
 
 ## Running Instructions
+    - Database dump has been added in db.sql
     - The postgres server is setup and running as required.
     - Run loadbalancer.py will a argument of port. For example port 5000: 'python3 loadbalancer.py 5000'. User this same port for other files.
     - Run as many servers as you want by: 'python3 server.py 5000'
