@@ -34,7 +34,7 @@
     - General libraries such as base64, json, time, datetime, sys, os are used wherever needed.
 
 ## Details
-    - Some Keywords ('CREATE GROUP', 'ADD MEMBER', 'REMOVE MEMBER', 'LEAVE GROUP') are preserved and can not be used as user or group name.
+    - Some Keywords ('CREATE GROUP', 'ADD MEMBER', 'REMOVE MEMBER', 'LEAVE GROUP', 'EXIT') are preserved and can not be used as user or group name.
     - username and groupname are unique ids and can not be repeated.
     
     - UI is pretty informative and should be easy to use.

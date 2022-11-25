@@ -180,7 +180,7 @@ class Client:
                 username = input("Enter Username: ")
             if userExist(username) or groupExist(username):
                 print ("Username not available, try another!!")
-            elif username in ["CREATE GROUP", "ADD MEMBER", "REMOVE MEMBER", "LEAVE GROUP"]:
+            elif username in ["CREATE GROUP", "ADD MEMBER", "REMOVE MEMBER", "LEAVE GROUP", "EXIT"]:
                 print ("Username Not Allowed, try another!!")
             else:
                 self.username = username
@@ -424,6 +424,8 @@ class Client:
             elif toUser == "LEAVE GROUP":
                 self.leaveGroup()
                 return
+            elif toUser == "EXIT":
+                quit()
 
             uExist = userExist(toUser)
             gExist = groupExist(toUser)
