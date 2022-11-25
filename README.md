@@ -8,7 +8,13 @@
     - Chaitanya Garg (210050039) was like the head of group, he contributed in all features.
     - Jennisha Agrawal (210050039) contributed in Encryption and Undelivered messages.
     - Atharv Kshirsagar (210050025) contributed in Encryption, Groups and SignUp/login.
-    
+
+## Running Instructions
+    - The postgres server is setup and running as required.
+    - Run loadbalancer.py will a argument of port. For example port 5000: 'python3 loadbalancer.py 5000'. User this same port for other files.
+    - Run as many servers as you want by: 'python3 server.py 5000'
+    - Run as many clients as you want by: 'python3 client.py 5000'
+
 ## Features added
     - SignUp/Login Authentication.
     - Database to store information securely.
