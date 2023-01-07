@@ -1,14 +1,5 @@
 # Telepound
 
-## Contributions
-    - We did not completely distribute work. This was because we tried to do that, but then the codes were not compatible with each other and required double the time to combine the features, so we resorted to doing 1 thing together instead of 3 things seperately.
-
-    - We discussed the approach to add the features and whoever was free contributed in impliment the approach.
-
-    - Chaitanya Garg (210050039) was like the head of group, he contributed in all features.
-    - Jennisha Agrawal (210050039) contributed in Encryption and Undelivered messages.
-    - Atharv Kshirsagar (210050025) contributed in Encryption, Groups and SignUp/login.
-
 ## Running Instructions
     - Database dump has been added in db.sql
     - The postgres server is setup and running as required.
